@@ -1,0 +1,17 @@
+{
+  "name": "opencode-token-tracker",
+  "version": "1.0.0",
+  "description": "Calculate token prices from OpenCode sessions by model",
+  "main": "opencode-token-calc.ts",
+  "scripts": {
+    "start": "npx ts-node opencode-token-calc.ts",
+    "calc": "npx tsx opencode-token-calc.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0"
+  }
+}
