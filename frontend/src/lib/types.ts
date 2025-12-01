@@ -163,38 +163,34 @@ export interface TokenContributionData {
 // =====================================
 
 /**
- * Available theme names (from github-contributions-canvas)
+ * Available color palette names for graph contribution cells
  */
-export type ThemeName =
-  | "standard"
-  | "classic"
-  | "githubDark"
+export type ColorPaletteName =
+  | "green"
   | "halloween"
   | "teal"
-  | "leftPad"
-  | "dracula"
   | "blue"
-  | "panda"
-  | "sunny"
   | "pink"
-  | "YlGnBu"
-  | "solarizedDark"
-  | "solarizedLight";
+  | "purple"
+  | "orange"
+  | "monochrome"
+  | "YlGnBu";
 
 /**
- * Theme color definition
+ * Graph color palette - only for contribution cell colors
  */
-export interface Theme {
-  name: ThemeName;
-  background: string;
-  text: string;
-  meta: string;
+export interface GraphColorPalette {
+  name: string;
   grade0: string;
   grade1: string;
   grade2: string;
   grade3: string;
   grade4: string;
 }
+
+// Legacy type aliases for backward compatibility
+export type ThemeName = ColorPaletteName;
+export type Theme = GraphColorPalette;
 
 /**
  * Graph view mode
@@ -214,7 +210,7 @@ export interface TooltipPosition {
  */
 export interface GraphState {
   view: ViewMode;
-  theme: ThemeName;
+  colorPalette: ColorPaletteName;
   selectedYear: string | null;
   hoveredDay: DailyContribution | null;
   selectedDay: DailyContribution | null;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useState } from "react";
-import type { DailyContribution, Theme, TooltipPosition } from "@/lib/types";
+import type { DailyContribution, GraphColorPalette, TooltipPosition } from "@/lib/types";
 import { getGradeColor } from "@/lib/themes";
 import { groupByWeek, hexToNumber, formatCurrency, formatDate, formatTokenCount } from "@/lib/utils";
 import {
@@ -14,7 +14,7 @@ import {
 
 interface TokenGraph3DProps {
   contributions: DailyContribution[];
-  theme: Theme;
+  palette: GraphColorPalette;
   year: string;
   maxCost: number;
   totalCost: number;
@@ -28,9 +28,25 @@ interface TokenGraph3DProps {
   onDayClick: (day: DailyContribution | null) => void;
 }
 
+// Hook to detect system dark mode
+function useSystemDarkMode() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(mq.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return isDark;
+}
+
 export function TokenGraph3D({
   contributions,
-  theme,
+  palette,
   year,
   maxCost,
   totalCost,
@@ -48,6 +64,13 @@ export function TokenGraph3D({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obeliskRef = useRef<any>(null);
   const weeksData = groupByWeek(contributions, year);
+  const isDark = useSystemDarkMode();
+
+  // Get CSS variable value at runtime
+  const getCSSVar = (varName: string): string => {
+    if (typeof window === "undefined") return "";
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  };
 
   // Load obelisk.js dynamically (client-side only)
   useEffect(() => {
@@ -81,8 +104,9 @@ export function TokenGraph3D({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas with background color
-    ctx.fillStyle = theme.background;
+    // Clear canvas with background color from CSS variable
+    const bgColor = getCSSVar("--color-graph-canvas") || (isDark ? "#0d1117" : "#ffffff");
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, ISO_CANVAS_WIDTH, ISO_CANVAS_HEIGHT);
 
     // Create pixel view with origin point (matching reference)
@@ -114,8 +138,12 @@ export function TokenGraph3D({
 
         // Get color based on intensity
         const intensity = day?.intensity ?? 0;
-        const colorHex = getGradeColor(theme, intensity);
-        const colorNum = hexToNumber(colorHex);
+        const colorHex = getGradeColor(palette, intensity);
+        // Handle CSS variable for grade0
+        const resolvedColor = colorHex.startsWith("var(") 
+          ? (getCSSVar("--color-graph-empty") || (isDark ? "#161b22" : "#ebedf0"))
+          : colorHex;
+        const colorNum = hexToNumber(resolvedColor);
 
         // Create cube
         const dimension = new obelisk.CubeDimension(CUBE_SIZE, CUBE_SIZE, Math.max(cubeHeight, MIN_CUBE_HEIGHT));
@@ -129,7 +157,7 @@ export function TokenGraph3D({
         pixelView.renderObject(cube, p3d);
       }
     }
-  }, [obeliskLoaded, contributions, theme, year, maxCost, weeksData]);
+  }, [obeliskLoaded, contributions, palette, year, maxCost, weeksData, isDark]);
 
   // Hit testing is approximate for 3D - just use position estimate
   const getDayAtPosition = useCallback(
@@ -192,10 +220,10 @@ export function TokenGraph3D({
         style={{
           width: ISO_CANVAS_WIDTH,
           height: ISO_CANVAS_HEIGHT,
-          backgroundColor: theme.background,
+          backgroundColor: "var(--color-graph-canvas)",
         }}
       >
-        <div className="animate-pulse" style={{ color: theme.meta }}>
+        <div className="animate-pulse" style={{ color: "var(--color-fg-muted)" }}>
           Loading 3D view...
         </div>
       </div>
@@ -218,70 +246,76 @@ export function TokenGraph3D({
       
       {/* GitHub-style Stats Overlay - Top Right */}
       <div className="absolute top-3 right-5">
-        <h5 className="mb-1 text-sm font-semibold" style={{ color: theme.text }}>
+        <h5 className="mb-1 text-sm font-semibold" style={{ color: "var(--color-fg-default)" }}>
           Token Usage
         </h5>
         <div 
           className="flex justify-between rounded-md border px-1 md:px-2"
-          style={{ borderColor: theme.meta, backgroundColor: `${theme.background}ee` }}
+          style={{ 
+            borderColor: "var(--color-border-default)", 
+            backgroundColor: "var(--color-card-bg)",
+          }}
         >
           <div className="p-2">
-            <span className="block text-2xl font-bold leading-tight" style={{ color: theme.grade4 }}>
+            <span className="block text-2xl font-bold leading-tight" style={{ color: palette.grade4 }}>
               {formatCurrency(totalCost)}
             </span>
-            <span className="block text-xs font-bold" style={{ color: theme.text }}>Total</span>
-            <span className="hidden sm:block text-xs" style={{ color: theme.meta }}>
+            <span className="block text-xs font-bold" style={{ color: "var(--color-fg-default)" }}>Total</span>
+            <span className="hidden sm:block text-xs" style={{ color: "var(--color-fg-muted)" }}>
               {dateRange.start} → {dateRange.end}
             </span>
           </div>
           <div className="p-2 hidden xl:block">
-            <span className="block text-2xl font-bold leading-tight" style={{ color: theme.grade4 }}>
+            <span className="block text-2xl font-bold leading-tight" style={{ color: palette.grade4 }}>
               {formatTokenCount(totalTokens)}
             </span>
-            <span className="block text-xs font-bold" style={{ color: theme.text }}>Tokens</span>
-            <span className="hidden sm:block text-xs" style={{ color: theme.meta }}>
+            <span className="block text-xs font-bold" style={{ color: "var(--color-fg-default)" }}>Tokens</span>
+            <span className="hidden sm:block text-xs" style={{ color: "var(--color-fg-muted)" }}>
               {activeDays} active days
             </span>
           </div>
           {bestDay && (
             <div className="p-2">
-              <span className="block text-2xl font-bold leading-tight" style={{ color: theme.grade4 }}>
+              <span className="block text-2xl font-bold leading-tight" style={{ color: palette.grade4 }}>
                 {formatCurrency(bestDay.totals.cost)}
               </span>
-              <span className="block text-xs font-bold" style={{ color: theme.text }}>Best day</span>
-              <span className="hidden sm:block text-xs" style={{ color: theme.meta }}>
+              <span className="block text-xs font-bold" style={{ color: "var(--color-fg-default)" }}>Best day</span>
+              <span className="hidden sm:block text-xs" style={{ color: "var(--color-fg-muted)" }}>
                 {formatDate(bestDay.date).split(',')[0]}
               </span>
             </div>
           )}
         </div>
-        <p className="mt-1 text-right text-xs" style={{ color: theme.meta }}>
-          Average: <span className="font-bold" style={{ color: theme.grade4 }}>
+        <p className="mt-1 text-right text-xs" style={{ color: "var(--color-fg-muted)" }}>
+          Average: <span className="font-bold" style={{ color: palette.grade4 }}>
             {formatCurrency(activeDays > 0 ? totalCost / activeDays : 0)}
-          </span> <span style={{ color: theme.meta }}>/ day</span>
+          </span> <span style={{ color: "var(--color-fg-muted)" }}>/ day</span>
         </p>
       </div>
 
       {/* GitHub-style Streaks Overlay - Bottom Left */}
       <div className="absolute bottom-6 left-5">
-        <h5 className="mb-1 text-sm font-semibold" style={{ color: theme.text }}>
+        <h5 className="mb-1 text-sm font-semibold" style={{ color: "var(--color-fg-default)" }}>
           Streaks
         </h5>
         <div 
           className="flex justify-between rounded-md border px-1 md:px-2"
-          style={{ borderColor: theme.meta, backgroundColor: `${theme.background}ee` }}
+          style={{ 
+            borderColor: "var(--color-border-default)", 
+            backgroundColor: "var(--color-card-bg)",
+          }}
         >
           <div className="p-2">
-            <span className="block text-2xl font-bold leading-tight" style={{ color: theme.grade4 }}>
+            <span className="block text-2xl font-bold leading-tight" style={{ color: palette.grade4 }}>
               {longestStreak} <span className="text-base">days</span>
             </span>
-            <span className="block text-xs font-bold" style={{ color: theme.text }}>Longest</span>
+            <span className="block text-xs font-bold" style={{ color: "var(--color-fg-default)" }}>Longest</span>
           </div>
           <div className="p-2">
-            <span className="block text-2xl font-bold leading-tight" style={{ color: theme.grade4 }}>
+            <span className="block text-2xl font-bold leading-tight" style={{ color: palette.grade4 }}>
               {currentStreak} <span className="text-base">days</span>
             </span>
-            <span className="block text-xs font-bold" style={{ color: theme.text }}>Current</span>
+            <span className="block text-xs font-bold" style={{ color: "var(--color-fg-default)" }}>Current</span>
           </div>
         </div>
       </div>

@@ -1,39 +1,39 @@
 "use client";
 
-import type { ViewMode, ThemeName, SourceType, Theme } from "@/lib/types";
-import { getThemeNames, themes } from "@/lib/themes";
+import type { ViewMode, ColorPaletteName, SourceType, GraphColorPalette } from "@/lib/types";
+import { getPaletteNames, colorPalettes } from "@/lib/themes";
 import { SOURCE_DISPLAY_NAMES } from "@/lib/constants";
 
 interface GraphControlsProps {
   view: ViewMode;
   onViewChange: (view: ViewMode) => void;
-  themeName: ThemeName;
-  onThemeChange: (theme: ThemeName) => void;
+  paletteName: ColorPaletteName;
+  onPaletteChange: (palette: ColorPaletteName) => void;
   selectedYear: string;
   availableYears: string[];
   onYearChange: (year: string) => void;
   sourceFilter: SourceType[];
   availableSources: SourceType[];
   onSourceFilterChange: (sources: SourceType[]) => void;
-  theme: Theme;
+  palette: GraphColorPalette;
   totalContributions: number;
 }
 
 export function GraphControls({
   view,
   onViewChange,
-  themeName,
-  onThemeChange,
+  paletteName,
+  onPaletteChange,
   selectedYear,
   availableYears,
   onYearChange,
   sourceFilter,
   availableSources,
   onSourceFilterChange,
-  theme,
+  palette,
   totalContributions,
 }: GraphControlsProps) {
-  const themeNames = getThemeNames();
+  const paletteNames = getPaletteNames();
 
   const handleSourceToggle = (source: SourceType) => {
     if (sourceFilter.includes(source)) {
@@ -60,9 +60,9 @@ export function GraphControls({
           onClick={() => onViewChange("2d")}
           className="px-2 py-0.5 text-xs font-medium rounded-l border transition-colors"
           style={{
-            backgroundColor: view === "2d" ? theme.grade3 : theme.background,
-            color: view === "2d" ? "#fff" : theme.text,
-            borderColor: theme.meta,
+            backgroundColor: view === "2d" ? palette.grade3 : "var(--color-btn-bg)",
+            color: view === "2d" ? "#fff" : "var(--color-fg-default)",
+            borderColor: "var(--color-border-default)",
           }}
         >
           2D
@@ -71,37 +71,38 @@ export function GraphControls({
           onClick={() => onViewChange("3d")}
           className="px-2 py-0.5 text-xs font-medium rounded-r border-t border-b border-r transition-colors"
           style={{
-            backgroundColor: view === "3d" ? theme.grade3 : theme.background,
-            color: view === "3d" ? "#fff" : theme.text,
-            borderColor: theme.meta,
+            backgroundColor: view === "3d" ? palette.grade3 : "var(--color-btn-bg)",
+            color: view === "3d" ? "#fff" : "var(--color-fg-default)",
+            borderColor: "var(--color-border-default)",
           }}
         >
           3D
         </button>
       </div>
 
-      {/* Theme dropdown - floating right */}
+      {/* Palette dropdown - floating right */}
       <div className="float-right mt-1 ml-2">
         <select
-          value={themeName}
-          onChange={(e) => onThemeChange(e.target.value as ThemeName)}
-          className="text-xs py-0.5 px-1 rounded border bg-transparent cursor-pointer"
+          value={paletteName}
+          onChange={(e) => onPaletteChange(e.target.value as ColorPaletteName)}
+          className="text-xs py-0.5 px-1 rounded border cursor-pointer"
           style={{
-            borderColor: theme.meta,
-            color: theme.text,
+            borderColor: "var(--color-border-default)",
+            color: "var(--color-fg-default)",
+            backgroundColor: "var(--color-btn-bg)",
           }}
         >
-          {themeNames.map((name) => (
-            <option key={name} value={name} style={{ backgroundColor: themes[name].background }}>
-              {name}
+          {paletteNames.map((name) => (
+            <option key={name} value={name}>
+              {colorPalettes[name].name}
             </option>
           ))}
         </select>
       </div>
 
       {/* Main Title - GitHub style */}
-      <h2 className="text-base font-normal mb-2" style={{ color: theme.text }}>
-        <span className="font-semibold" style={{ color: theme.grade4 }}>
+      <h2 className="text-base font-normal mb-2" style={{ color: "var(--color-fg-default)" }}>
+        <span className="font-semibold" style={{ color: palette.grade4 }}>
           {totalContributions.toLocaleString()}
         </span>
         {" "}token usage entries
@@ -112,11 +113,14 @@ export function GraphControls({
               <select
                 value={selectedYear}
                 onChange={(e) => onYearChange(e.target.value)}
-                className="font-semibold bg-transparent border-none cursor-pointer underline decoration-dotted"
-                style={{ color: theme.text }}
+                className="font-semibold border-none cursor-pointer underline decoration-dotted"
+                style={{ 
+                  color: "var(--color-fg-default)",
+                  backgroundColor: "transparent",
+                }}
               >
                 {availableYears.map((year) => (
-                  <option key={year} value={year} style={{ backgroundColor: theme.background }}>
+                  <option key={year} value={year} style={{ backgroundColor: "var(--color-canvas-default)" }}>
                     {year}
                   </option>
                 ))}
@@ -135,7 +139,7 @@ export function GraphControls({
         {/* Source Filter */}
         {availableSources.length > 1 && (
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs" style={{ color: theme.meta }}>
+            <span className="text-xs" style={{ color: "var(--color-fg-muted)" }}>
               Filter:
             </span>
             {availableSources.map((source) => {
@@ -148,9 +152,9 @@ export function GraphControls({
                     isSelected ? "font-medium" : "opacity-50"
                   }`}
                   style={{
-                    backgroundColor: isSelected ? `${theme.grade3}30` : "transparent",
-                    color: theme.text,
-                    border: `1px solid ${isSelected ? theme.grade3 : theme.meta}`,
+                    backgroundColor: isSelected ? `${palette.grade3}30` : "transparent",
+                    color: "var(--color-fg-default)",
+                    border: `1px solid ${isSelected ? palette.grade3 : "var(--color-border-default)"}`,
                   }}
                 >
                   {SOURCE_DISPLAY_NAMES[source] || source}
@@ -161,7 +165,7 @@ export function GraphControls({
               <button
                 onClick={handleSelectAllSources}
                 className="px-2 py-0.5 text-xs"
-                style={{ color: theme.meta, textDecoration: "underline" }}
+                style={{ color: "var(--color-fg-muted)", textDecoration: "underline" }}
               >
                 Show all
               </button>
@@ -170,7 +174,7 @@ export function GraphControls({
               <button
                 onClick={handleClearSources}
                 className="px-2 py-0.5 text-xs"
-                style={{ color: theme.meta, textDecoration: "underline" }}
+                style={{ color: "var(--color-fg-muted)", textDecoration: "underline" }}
               >
                 Clear
               </button>
@@ -180,7 +184,7 @@ export function GraphControls({
 
         {/* Legend */}
         <div className="flex items-center gap-1.5 ml-auto">
-          <span className="text-xs" style={{ color: theme.meta }}>
+          <span className="text-xs" style={{ color: "var(--color-fg-muted)" }}>
             Less
           </span>
           {[0, 1, 2, 3, 4].map((level) => (
@@ -188,11 +192,11 @@ export function GraphControls({
               key={level}
               className="w-2.5 h-2.5 rounded-sm"
               style={{
-                backgroundColor: theme[`grade${level}` as keyof Theme] as string,
+                backgroundColor: palette[`grade${level}` as keyof GraphColorPalette] as string,
               }}
             />
           ))}
-          <span className="text-xs" style={{ color: theme.meta }}>
+          <span className="text-xs" style={{ color: "var(--color-fg-muted)" }}>
             More
           </span>
         </div>

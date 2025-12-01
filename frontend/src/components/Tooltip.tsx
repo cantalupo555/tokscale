@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { DailyContribution, TooltipPosition, Theme } from "@/lib/types";
+import type { DailyContribution, TooltipPosition, GraphColorPalette } from "@/lib/types";
 import { formatDate, formatCurrency, formatTokenCount } from "@/lib/utils";
 
 interface TooltipProps {
   day: DailyContribution | null;
   position: TooltipPosition | null;
   visible: boolean;
-  theme: Theme;
+  palette: GraphColorPalette;
 }
 
-export function Tooltip({ day, position, visible, theme }: TooltipProps) {
+export function Tooltip({ day, position, visible, palette }: TooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [adjustedPosition, setAdjustedPosition] = useState<TooltipPosition | null>(null);
 
@@ -63,22 +63,22 @@ export function Tooltip({ day, position, visible, theme }: TooltipProps) {
       <div
         className="rounded-lg shadow-lg border p-3 min-w-[200px]"
         style={{
-          backgroundColor: theme.background,
-          borderColor: theme.meta,
-          color: theme.text,
+          backgroundColor: "var(--color-card-bg)",
+          borderColor: "var(--color-border-default)",
+          color: "var(--color-fg-default)",
         }}
       >
         {/* Date */}
-        <div className="font-semibold mb-2" style={{ color: theme.text }}>
+        <div className="font-semibold mb-2" style={{ color: "var(--color-fg-default)" }}>
           {formatDate(day.date)}
         </div>
 
         {/* Divider */}
-        <div className="border-t my-2" style={{ borderColor: theme.meta }} />
+        <div className="border-t my-2" style={{ borderColor: "var(--color-border-muted)" }} />
 
         {/* Cost (highlighted) */}
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm" style={{ color: theme.meta }}>
+          <span className="text-sm" style={{ color: "var(--color-fg-muted)" }}>
             Cost
           </span>
           <span
@@ -86,10 +86,10 @@ export function Tooltip({ day, position, visible, theme }: TooltipProps) {
             style={{
               color:
                 day.intensity >= 3
-                  ? theme.grade4
+                  ? palette.grade4
                   : day.intensity >= 2
-                  ? theme.grade3
-                  : theme.text,
+                  ? palette.grade3
+                  : "var(--color-fg-default)",
             }}
           >
             {formatCurrency(totals.cost)}
@@ -97,38 +97,38 @@ export function Tooltip({ day, position, visible, theme }: TooltipProps) {
         </div>
 
         {/* Divider */}
-        <div className="border-t my-2" style={{ borderColor: theme.meta }} />
+        <div className="border-t my-2" style={{ borderColor: "var(--color-border-muted)" }} />
 
         {/* Token breakdown */}
         <div className="space-y-1 text-sm">
-          <TokenRow label="Input" value={tokenBreakdown.input} color={theme.meta} textColor={theme.text} />
-          <TokenRow label="Output" value={tokenBreakdown.output} color={theme.meta} textColor={theme.text} />
-          <TokenRow label="Cache Read" value={tokenBreakdown.cacheRead} color={theme.meta} textColor={theme.text} />
-          <TokenRow label="Cache Write" value={tokenBreakdown.cacheWrite} color={theme.meta} textColor={theme.text} />
+          <TokenRow label="Input" value={tokenBreakdown.input} />
+          <TokenRow label="Output" value={tokenBreakdown.output} />
+          <TokenRow label="Cache Read" value={tokenBreakdown.cacheRead} />
+          <TokenRow label="Cache Write" value={tokenBreakdown.cacheWrite} />
           {tokenBreakdown.reasoning > 0 && (
-            <TokenRow label="Reasoning" value={tokenBreakdown.reasoning} color={theme.meta} textColor={theme.text} />
+            <TokenRow label="Reasoning" value={tokenBreakdown.reasoning} />
           )}
         </div>
 
         {/* Divider */}
-        <div className="border-t my-2" style={{ borderColor: theme.meta }} />
+        <div className="border-t my-2" style={{ borderColor: "var(--color-border-muted)" }} />
 
         {/* Total tokens */}
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium" style={{ color: theme.meta }}>
+          <span className="text-sm font-medium" style={{ color: "var(--color-fg-muted)" }}>
             Total
           </span>
-          <span className="font-semibold" style={{ color: theme.text }}>
+          <span className="font-semibold" style={{ color: "var(--color-fg-default)" }}>
             {formatTokenCount(totals.tokens)} tokens
           </span>
         </div>
 
         {/* Messages count */}
         <div className="flex justify-between items-center mt-1">
-          <span className="text-sm" style={{ color: theme.meta }}>
+          <span className="text-sm" style={{ color: "var(--color-fg-muted)" }}>
             Messages
           </span>
-          <span className="text-sm" style={{ color: theme.text }}>
+          <span className="text-sm" style={{ color: "var(--color-fg-default)" }}>
             {totals.messages.toLocaleString()}
           </span>
         </div>
@@ -140,17 +140,15 @@ export function Tooltip({ day, position, visible, theme }: TooltipProps) {
 interface TokenRowProps {
   label: string;
   value: number;
-  color: string;
-  textColor: string;
 }
 
-function TokenRow({ label, value, color, textColor }: TokenRowProps) {
+function TokenRow({ label, value }: TokenRowProps) {
   if (value === 0) return null;
 
   return (
     <div className="flex justify-between items-center">
-      <span style={{ color }}>{label}</span>
-      <span className="font-mono" style={{ color: textColor }}>
+      <span style={{ color: "var(--color-fg-muted)" }}>{label}</span>
+      <span className="font-mono" style={{ color: "var(--color-fg-default)" }}>
         {formatTokenCount(value)}
       </span>
     </div>

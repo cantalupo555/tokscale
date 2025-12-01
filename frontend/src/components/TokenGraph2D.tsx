@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
-import type { DailyContribution, Theme, TooltipPosition } from "@/lib/types";
+import { useRef, useEffect, useCallback, useState } from "react";
+import type { DailyContribution, GraphColorPalette, TooltipPosition } from "@/lib/types";
 import { getGradeColor } from "@/lib/themes";
 import { groupByWeek } from "@/lib/utils";
 import {
@@ -19,21 +19,44 @@ import { parseISO, getMonth } from "date-fns";
 
 interface TokenGraph2DProps {
   contributions: DailyContribution[];
-  theme: Theme;
+  palette: GraphColorPalette;
   year: string;
   onDayHover: (day: DailyContribution | null, position: TooltipPosition | null) => void;
   onDayClick: (day: DailyContribution | null) => void;
 }
 
+// Hook to detect system dark mode
+function useSystemDarkMode() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(mq.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return isDark;
+}
+
 export function TokenGraph2D({
   contributions,
-  theme,
+  palette,
   year,
   onDayHover,
   onDayClick,
 }: TokenGraph2DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const weeksData = groupByWeek(contributions, year);
+  const isDark = useSystemDarkMode();
+
+  // Get CSS variable value at runtime
+  const getCSSVar = (varName: string): string => {
+    if (typeof window === "undefined") return "";
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  };
 
   // Calculate canvas dimensions
   const canvasWidth = CANVAS_MARGIN * 2 + TEXT_HEIGHT + weeksData.length * CELL_SIZE;
@@ -56,12 +79,14 @@ export function TokenGraph2D({
     ctx.scale(dpr, dpr);
 
     // Clear and set background
-    ctx.fillStyle = theme.background;
+    const bgColor = getCSSVar("--color-graph-canvas") || (isDark ? "#0d1117" : "#ffffff");
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // Draw month labels
     ctx.font = `${FONT_SIZE}px ${FONT_FAMILY}`;
-    ctx.fillStyle = theme.meta;
+    const metaColor = getCSSVar("--color-fg-muted") || (isDark ? "#7d8590" : "#656d76");
+    ctx.fillStyle = metaColor;
     ctx.textAlign = "left";
 
     let lastMonth = -1;
@@ -97,14 +122,19 @@ export function TokenGraph2D({
 
         // Get color based on intensity
         const intensity = day?.intensity ?? 0;
-        ctx.fillStyle = getGradeColor(theme, intensity);
+        const colorHex = getGradeColor(palette, intensity);
+        // Handle CSS variable for grade0
+        const resolvedColor = colorHex.startsWith("var(")
+          ? (getCSSVar("--color-graph-empty") || (isDark ? "#161b22" : "#ebedf0"))
+          : colorHex;
+        ctx.fillStyle = resolvedColor;
 
         // Draw rounded rectangle
         roundRect(ctx, x, y, BOX_WIDTH, BOX_WIDTH, 2);
         ctx.fill();
       }
     }
-  }, [contributions, theme, year, weeksData, canvasWidth, canvasHeight]);
+  }, [contributions, palette, year, weeksData, canvasWidth, canvasHeight, isDark]);
 
   // Hit testing for mouse position
   const getDayAtPosition = useCallback(

@@ -5,11 +5,11 @@ import type {
   TokenContributionData,
   DailyContribution,
   ViewMode,
-  ThemeName,
+  ColorPaletteName,
   SourceType,
   TooltipPosition,
 } from "@/lib/types";
-import { getTheme, DEFAULT_THEME } from "@/lib/themes";
+import { getPalette, DEFAULT_PALETTE } from "@/lib/themes";
 import {
   filterBySource,
   filterByYear,
@@ -32,7 +32,7 @@ interface GraphContainerProps {
 export function GraphContainer({ data }: GraphContainerProps) {
   // State
   const [view, setView] = useState<ViewMode>("2d");
-  const [themeName, setThemeName] = useState<ThemeName>(DEFAULT_THEME);
+  const [paletteName, setPaletteName] = useState<ColorPaletteName>(DEFAULT_PALETTE);
   const [selectedYear, setSelectedYear] = useState<string>(() => {
     // Default to most recent year
     return data.years.length > 0 ? data.years[data.years.length - 1].year : "";
@@ -42,8 +42,8 @@ export function GraphContainer({ data }: GraphContainerProps) {
   const [selectedDay, setSelectedDay] = useState<DailyContribution | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceType[]>([]);
 
-  // Get theme
-  const theme = useMemo(() => getTheme(themeName), [themeName]);
+  // Get color palette for graph cells
+  const palette = useMemo(() => getPalette(paletteName), [paletteName]);
 
   // Get available years
   const availableYears = useMemo(() => data.years.map((y) => y.year), [data.years]);
@@ -128,8 +128,8 @@ export function GraphContainer({ data }: GraphContainerProps) {
       <div
         className="rounded-lg border py-2 overflow-hidden"
         style={{
-          backgroundColor: theme.background,
-          borderColor: theme.meta,
+          backgroundColor: "var(--color-canvas-default)",
+          borderColor: "var(--color-border-default)",
         }}
       >
         {/* Controls inside the graph container - GitHub style */}
@@ -137,15 +137,15 @@ export function GraphContainer({ data }: GraphContainerProps) {
           <GraphControls
             view={view}
             onViewChange={setView}
-            themeName={themeName}
-            onThemeChange={setThemeName}
+            paletteName={paletteName}
+            onPaletteChange={setPaletteName}
             selectedYear={selectedYear}
             availableYears={availableYears}
             onYearChange={setSelectedYear}
             sourceFilter={sourceFilter}
             availableSources={availableSources}
             onSourceFilterChange={setSourceFilter}
-            theme={theme}
+            palette={palette}
             totalContributions={totalContributions}
           />
         </div>
@@ -155,7 +155,7 @@ export function GraphContainer({ data }: GraphContainerProps) {
           {view === "2d" ? (
             <TokenGraph2D
               contributions={yearContributions}
-              theme={theme}
+              palette={palette}
               year={selectedYear}
               onDayHover={handleDayHover}
               onDayClick={handleDayClick}
@@ -163,7 +163,7 @@ export function GraphContainer({ data }: GraphContainerProps) {
           ) : (
             <TokenGraph3D
               contributions={yearContributions}
-              theme={theme}
+              palette={palette}
               year={selectedYear}
               maxCost={maxCost}
               totalCost={totalCost}
@@ -185,19 +185,19 @@ export function GraphContainer({ data }: GraphContainerProps) {
         <BreakdownPanel
           day={selectedDay}
           onClose={handleCloseBreakdown}
-          theme={theme}
+          palette={palette}
         />
       )}
 
       {/* Stats Panel - only show in 2D mode since 3D has overlays */}
-      {view === "2d" && <StatsPanel data={filteredBySource} theme={theme} />}
+      {view === "2d" && <StatsPanel data={filteredBySource} palette={palette} />}
 
       {/* Tooltip (floating) */}
       <Tooltip
         day={hoveredDay}
         position={tooltipPosition}
         visible={hoveredDay !== null}
-        theme={theme}
+        palette={palette}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import type { TokenContributionData, Theme } from "@/lib/types";
+import type { TokenContributionData, GraphColorPalette } from "@/lib/types";
 import {
   formatCurrency,
   formatTokenCount,
@@ -12,10 +12,10 @@ import {
 
 interface StatsPanelProps {
   data: TokenContributionData;
-  theme: Theme;
+  palette: GraphColorPalette;
 }
 
-export function StatsPanel({ data, theme }: StatsPanelProps) {
+export function StatsPanel({ data, palette }: StatsPanelProps) {
   const { summary, contributions } = data;
 
   const currentStreak = calculateCurrentStreak(contributions);
@@ -26,13 +26,13 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
     <div
       className="rounded-lg border p-4"
       style={{
-        backgroundColor: theme.background,
-        borderColor: theme.meta,
+        backgroundColor: "var(--color-card-bg)",
+        borderColor: "var(--color-border-default)",
       }}
     >
       <h3
         className="text-sm font-semibold mb-3 uppercase tracking-wide"
-        style={{ color: theme.meta }}
+        style={{ color: "var(--color-fg-muted)" }}
       >
         Statistics
       </h3>
@@ -42,7 +42,7 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
         <StatItem
           label="Total Cost"
           value={formatCurrency(summary.totalCost)}
-          theme={theme}
+          highlightColor={palette.grade4}
           highlight
         />
 
@@ -50,35 +50,30 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
         <StatItem
           label="Total Tokens"
           value={formatTokenCount(summary.totalTokens)}
-          theme={theme}
         />
 
         {/* Active Days */}
         <StatItem
           label="Active Days"
           value={`${summary.activeDays} / ${summary.totalDays}`}
-          theme={theme}
         />
 
         {/* Avg Per Day */}
         <StatItem
           label="Avg / Day"
           value={formatCurrency(summary.averagePerDay)}
-          theme={theme}
         />
 
         {/* Current Streak */}
         <StatItem
           label="Current Streak"
           value={`${currentStreak} day${currentStreak !== 1 ? "s" : ""}`}
-          theme={theme}
         />
 
         {/* Longest Streak */}
         <StatItem
           label="Longest Streak"
           value={`${longestStreak} day${longestStreak !== 1 ? "s" : ""}`}
-          theme={theme}
         />
 
         {/* Best Day */}
@@ -87,7 +82,6 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
             label="Best Day"
             value={formatDate(bestDay.date)}
             subValue={formatCurrency(bestDay.totals.cost)}
-            theme={theme}
           />
         )}
 
@@ -95,16 +89,15 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
         <StatItem
           label="Models"
           value={summary.models.length.toString()}
-          theme={theme}
         />
       </div>
 
       {/* Sources */}
       <div
         className="mt-4 pt-4 border-t flex flex-wrap gap-2"
-        style={{ borderColor: theme.meta }}
+        style={{ borderColor: "var(--color-border-default)" }}
       >
-        <span className="text-xs uppercase tracking-wide mr-2" style={{ color: theme.meta }}>
+        <span className="text-xs uppercase tracking-wide mr-2" style={{ color: "var(--color-fg-muted)" }}>
           Sources:
         </span>
         {summary.sources.map((source) => (
@@ -112,8 +105,8 @@ export function StatsPanel({ data, theme }: StatsPanelProps) {
             key={source}
             className="text-xs px-2 py-0.5 rounded"
             style={{
-              backgroundColor: `${theme.grade3}20`,
-              color: theme.text,
+              backgroundColor: `${palette.grade3}20`,
+              color: "var(--color-fg-default)",
             }}
           >
             {source}
@@ -128,24 +121,24 @@ interface StatItemProps {
   label: string;
   value: string;
   subValue?: string;
-  theme: Theme;
+  highlightColor?: string;
   highlight?: boolean;
 }
 
-function StatItem({ label, value, subValue, theme, highlight }: StatItemProps) {
+function StatItem({ label, value, subValue, highlightColor, highlight }: StatItemProps) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide mb-1" style={{ color: theme.meta }}>
+      <div className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--color-fg-muted)" }}>
         {label}
       </div>
       <div
         className={`font-semibold ${highlight ? "text-lg" : "text-base"}`}
-        style={{ color: highlight ? theme.grade4 : theme.text }}
+        style={{ color: highlight && highlightColor ? highlightColor : "var(--color-fg-default)" }}
       >
         {value}
       </div>
       {subValue && (
-        <div className="text-xs" style={{ color: theme.meta }}>
+        <div className="text-xs" style={{ color: "var(--color-fg-muted)" }}>
           {subValue}
         </div>
       )}
