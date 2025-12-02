@@ -4,9 +4,12 @@ import { useState } from "react";
 import type { TokenContributionData } from "@/lib/types";
 import { DataInput } from "@/components/DataInput";
 import { GraphContainer } from "@/components/GraphContainer";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useSettings } from "@/lib/useSettings";
 
 export default function Home() {
   const [data, setData] = useState<TokenContributionData | null>(null);
+  const { theme, setTheme, mounted } = useSettings();
 
   const handleDataLoaded = (loadedData: TokenContributionData) => {
     setData(loadedData);
@@ -47,14 +50,21 @@ export default function Home() {
             </div>
           </div>
 
-          {data && (
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              Load Different Data
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <ThemeToggle 
+              theme={theme} 
+              onThemeChange={setTheme} 
+              mounted={mounted} 
+            />
+            {data && (
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Load Different Data
+              </button>
+            )}
+          </div>
         </div>
       </header>
 

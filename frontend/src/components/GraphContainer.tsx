@@ -5,11 +5,11 @@ import type {
   TokenContributionData,
   DailyContribution,
   ViewMode,
-  ColorPaletteName,
   SourceType,
   TooltipPosition,
 } from "@/lib/types";
-import { getPalette, DEFAULT_PALETTE } from "@/lib/themes";
+import { getPalette } from "@/lib/themes";
+import { useSettings } from "@/lib/useSettings";
 import {
   filterBySource,
   filterByYear,
@@ -30,9 +30,11 @@ interface GraphContainerProps {
 }
 
 export function GraphContainer({ data }: GraphContainerProps) {
-  // State
+  // Settings from localStorage (persisted)
+  const { paletteName, setPalette } = useSettings();
+
+  // Local state (not persisted)
   const [view, setView] = useState<ViewMode>("2d");
-  const [paletteName, setPaletteName] = useState<ColorPaletteName>(DEFAULT_PALETTE);
   const [selectedYear, setSelectedYear] = useState<string>(() => {
     // Default to most recent year
     return data.years.length > 0 ? data.years[data.years.length - 1].year : "";
@@ -138,7 +140,7 @@ export function GraphContainer({ data }: GraphContainerProps) {
             view={view}
             onViewChange={setView}
             paletteName={paletteName}
-            onPaletteChange={setPaletteName}
+            onPaletteChange={setPalette}
             selectedYear={selectedYear}
             availableYears={availableYears}
             onYearChange={setSelectedYear}
