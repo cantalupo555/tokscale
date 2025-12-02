@@ -4,6 +4,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import type { DailyContribution, GraphColorPalette, TooltipPosition } from "@/lib/types";
 import { getGradeColor } from "@/lib/themes";
 import { groupByWeek, hexToNumber, formatCurrency, formatDate, formatTokenCount } from "@/lib/utils";
+import { useSystemDarkMode } from "@/lib/useMediaQuery";
 import {
   CUBE_SIZE,
   MAX_CUBE_HEIGHT,
@@ -26,22 +27,6 @@ interface TokenGraph3DProps {
   dateRange: { start: string; end: string };
   onDayHover: (day: DailyContribution | null, position: TooltipPosition | null) => void;
   onDayClick: (day: DailyContribution | null) => void;
-}
-
-// Hook to detect system dark mode
-function useSystemDarkMode() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(mq.matches);
-
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return isDark;
 }
 
 export function TokenGraph3D({

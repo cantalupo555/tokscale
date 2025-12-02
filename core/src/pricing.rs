@@ -102,11 +102,11 @@ mod tests {
 
         let cost = pricing.calculate_cost(
             "claude-3-5-sonnet-20241022",
-            1000,  // input
-            500,   // output
-            2000,  // cache_read
-            100,   // cache_write
-            0,     // reasoning
+            1000, // input
+            500,  // output
+            2000, // cache_read
+            100,  // cache_write
+            0,    // reasoning
         );
 
         // Expected: (1000 * 3/1M) + (500 * 15/1M) + (2000 * 0.3/1M) + (100 * 3.75/1M)

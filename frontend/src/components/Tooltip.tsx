@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { DailyContribution, TooltipPosition, GraphColorPalette } from "@/lib/types";
 import { formatDate, formatCurrency, formatTokenCount } from "@/lib/utils";
 
@@ -11,41 +11,51 @@ interface TooltipProps {
   palette: GraphColorPalette;
 }
 
+/**
+ * Calculate adjusted position to prevent viewport overflow.
+ * Uses a ref to measure the tooltip after first render.
+ */
+function useAdjustedPosition(
+  position: TooltipPosition | null,
+  visible: boolean,
+  tooltipRef: React.RefObject<HTMLDivElement | null>
+): TooltipPosition | null {
+  if (!visible || !position) return null;
+
+  // On first render, tooltip hasn't been measured yet - use initial position
+  // Subsequent renders will have the ref populated
+  const tooltip = tooltipRef.current;
+  if (!tooltip) {
+    return { x: position.x + 15, y: position.y + 15 };
+  }
+
+  const rect = tooltip.getBoundingClientRect();
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
+  const viewportHeight = typeof window !== "undefined" ? window.innerHeight : 1080;
+
+  let x = position.x + 15; // Offset from cursor
+  let y = position.y + 15;
+
+  // Prevent horizontal overflow
+  if (x + rect.width > viewportWidth - 10) {
+    x = position.x - rect.width - 15;
+  }
+
+  // Prevent vertical overflow
+  if (y + rect.height > viewportHeight - 10) {
+    y = position.y - rect.height - 15;
+  }
+
+  // Ensure minimum position
+  x = Math.max(10, x);
+  y = Math.max(10, y);
+
+  return { x, y };
+}
+
 export function Tooltip({ day, position, visible, palette }: TooltipProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [adjustedPosition, setAdjustedPosition] = useState<TooltipPosition | null>(null);
-
-  // Adjust position to prevent overflow
-  useEffect(() => {
-    if (!visible || !position || !tooltipRef.current) {
-      setAdjustedPosition(null);
-      return;
-    }
-
-    const tooltip = tooltipRef.current;
-    const rect = tooltip.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    let x = position.x + 15; // Offset from cursor
-    let y = position.y + 15;
-
-    // Prevent horizontal overflow
-    if (x + rect.width > viewportWidth - 10) {
-      x = position.x - rect.width - 15;
-    }
-
-    // Prevent vertical overflow
-    if (y + rect.height > viewportHeight - 10) {
-      y = position.y - rect.height - 15;
-    }
-
-    // Ensure minimum position
-    x = Math.max(10, x);
-    y = Math.max(10, y);
-
-    setAdjustedPosition({ x, y });
-  }, [visible, position]);
+  const adjustedPosition = useAdjustedPosition(position, visible, tooltipRef);
 
   if (!visible || !day || !adjustedPosition) return null;
 

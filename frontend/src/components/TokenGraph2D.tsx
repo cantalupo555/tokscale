@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import type { DailyContribution, GraphColorPalette, TooltipPosition } from "@/lib/types";
 import { getGradeColor } from "@/lib/themes";
 import { groupByWeek } from "@/lib/utils";
+import { useSystemDarkMode } from "@/lib/useMediaQuery";
 import {
   BOX_WIDTH,
   CELL_SIZE,
@@ -23,22 +24,6 @@ interface TokenGraph2DProps {
   year: string;
   onDayHover: (day: DailyContribution | null, position: TooltipPosition | null) => void;
   onDayClick: (day: DailyContribution | null) => void;
-}
-
-// Hook to detect system dark mode
-function useSystemDarkMode() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(mq.matches);
-
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  return isDark;
 }
 
 export function TokenGraph2D({
