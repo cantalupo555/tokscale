@@ -1,11 +1,16 @@
 /**
  * Pricing data fetcher using LiteLLM as source
+ * Features disk caching with 1-hour TTL
  */
+
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 
 const LITELLM_PRICING_URL =
   "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 
-const TIERED_THRESHOLD = 200_000;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export interface LiteLLMModelPricing {
   input_cost_per_token?: number;
@@ -20,53 +25,127 @@ export interface LiteLLMModelPricing {
 
 export type PricingDataset = Record<string, LiteLLMModelPricing>;
 
-// Fallback pricing (per 1M tokens) for models not in LiteLLM
-const FALLBACK_PRICING: Record<string, LiteLLMModelPricing> = {
-  "claude-opus-4-5": {
-    input_cost_per_token: 15 / 1_000_000,
-    output_cost_per_token: 75 / 1_000_000,
-    cache_read_input_token_cost: 1.5 / 1_000_000,
-    cache_creation_input_token_cost: 18.75 / 1_000_000,
-  },
-  "claude-opus-4": {
-    input_cost_per_token: 15 / 1_000_000,
-    output_cost_per_token: 75 / 1_000_000,
-    cache_read_input_token_cost: 1.5 / 1_000_000,
-    cache_creation_input_token_cost: 18.75 / 1_000_000,
-  },
-  "claude-sonnet-4-5": {
-    input_cost_per_token: 3 / 1_000_000,
-    output_cost_per_token: 15 / 1_000_000,
-    cache_read_input_token_cost: 0.3 / 1_000_000,
-    cache_creation_input_token_cost: 3.75 / 1_000_000,
-  },
-  "claude-sonnet-4": {
-    input_cost_per_token: 3 / 1_000_000,
-    output_cost_per_token: 15 / 1_000_000,
-    cache_read_input_token_cost: 0.3 / 1_000_000,
-    cache_creation_input_token_cost: 3.75 / 1_000_000,
-  },
-  "claude-haiku-4-5": {
-    input_cost_per_token: 0.8 / 1_000_000,
-    output_cost_per_token: 4 / 1_000_000,
-    cache_read_input_token_cost: 0.08 / 1_000_000,
-    cache_creation_input_token_cost: 1 / 1_000_000,
-  },
-};
+interface CachedPricing {
+  timestamp: number;
+  data: PricingDataset;
+}
+
+/**
+ * Format for passing pricing to Rust native module
+ * Note: napi-rs expects undefined (not null) for Rust Option<T> fields
+ */
+export interface PricingEntry {
+  modelId: string;
+  pricing: {
+    inputCostPerToken: number;
+    outputCostPerToken: number;
+    cacheReadInputTokenCost?: number;
+    cacheCreationInputTokenCost?: number;
+  };
+}
+
+function getCacheDir(): string {
+  const cacheHome = process.env.XDG_CACHE_HOME || path.join(os.homedir(), ".cache");
+  return path.join(cacheHome, "token-tracker");
+}
+
+function getCachePath(): string {
+  return path.join(getCacheDir(), "pricing.json");
+}
+
+function loadCachedPricing(): CachedPricing | null {
+  try {
+    const cachePath = getCachePath();
+    if (!fs.existsSync(cachePath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(cachePath, "utf-8");
+    const cached = JSON.parse(content) as CachedPricing;
+
+    // Check TTL
+    const age = Date.now() - cached.timestamp;
+    if (age > CACHE_TTL_MS) {
+      return null; // Cache expired
+    }
+
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedPricing(data: PricingDataset): void {
+  try {
+    const cacheDir = getCacheDir();
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+
+    const cached: CachedPricing = {
+      timestamp: Date.now(),
+      data,
+    };
+
+    fs.writeFileSync(getCachePath(), JSON.stringify(cached), "utf-8");
+  } catch {
+    // Ignore cache write errors
+  }
+}
 
 export class PricingFetcher {
   private pricingData: PricingDataset | null = null;
 
+  /**
+   * Fetch pricing data (with disk cache, 1-hour TTL)
+   */
   async fetchPricing(): Promise<PricingDataset> {
     if (this.pricingData) return this.pricingData;
 
+    // Try to load from cache first
+    const cached = loadCachedPricing();
+    if (cached) {
+      this.pricingData = cached.data;
+      return this.pricingData;
+    }
+
+    // Fetch from LiteLLM
     const response = await fetch(LITELLM_PRICING_URL);
     if (!response.ok) {
       throw new Error(`Failed to fetch pricing: ${response.status}`);
     }
 
     this.pricingData = (await response.json()) as PricingDataset;
+
+    // Save to cache
+    saveCachedPricing(this.pricingData);
+
     return this.pricingData;
+  }
+
+  /**
+   * Get raw pricing dataset
+   */
+  getPricingData(): PricingDataset | null {
+    return this.pricingData;
+  }
+
+  /**
+   * Convert pricing data to format expected by Rust native module
+   */
+  toPricingEntries(): PricingEntry[] {
+    if (!this.pricingData) return [];
+
+    return Object.entries(this.pricingData).map(([modelId, pricing]) => ({
+      modelId,
+      pricing: {
+        inputCostPerToken: pricing.input_cost_per_token ?? 0,
+        outputCostPerToken: pricing.output_cost_per_token ?? 0,
+        // napi-rs expects undefined (not null) for Option<T> fields
+        cacheReadInputTokenCost: pricing.cache_read_input_token_cost,
+        cacheCreationInputTokenCost: pricing.cache_creation_input_token_cost,
+      },
+    }));
   }
 
   getModelPricing(modelID: string): LiteLLMModelPricing | null {
@@ -94,13 +173,6 @@ export class PricingFetcher {
       }
     }
 
-    // Fallback pricing
-    for (const [family, pricing] of Object.entries(FALLBACK_PRICING)) {
-      if (modelID.toLowerCase().includes(family.toLowerCase())) {
-        return pricing;
-      }
-    }
-
     return null;
   }
 
@@ -114,44 +186,28 @@ export class PricingFetcher {
     },
     pricing: LiteLLMModelPricing
   ): number {
-    const calculateTiered = (
-      count: number,
-      baseRate?: number,
-      tieredRate?: number
-    ): number => {
-      if (!baseRate || count === 0) return 0;
-      if (count <= TIERED_THRESHOLD || !tieredRate) {
-        return count * baseRate;
-      }
-      return (
-        TIERED_THRESHOLD * baseRate + (count - TIERED_THRESHOLD) * tieredRate
-      );
-    };
-
-    const inputCost = calculateTiered(
-      tokens.input,
-      pricing.input_cost_per_token,
-      pricing.input_cost_per_token_above_200k_tokens
-    );
-
-    const outputCost = calculateTiered(
-      tokens.output + (tokens.reasoning || 0),
-      pricing.output_cost_per_token,
-      pricing.output_cost_per_token_above_200k_tokens
-    );
-
-    const cacheWriteCost = calculateTiered(
-      tokens.cacheWrite,
-      pricing.cache_creation_input_token_cost,
-      pricing.cache_creation_input_token_cost_above_200k_tokens
-    );
-
-    const cacheReadCost = calculateTiered(
-      tokens.cacheRead,
-      pricing.cache_read_input_token_cost,
-      pricing.cache_read_input_token_cost_above_200k_tokens
-    );
+    const inputCost = tokens.input * (pricing.input_cost_per_token ?? 0);
+    const outputCost =
+      (tokens.output + (tokens.reasoning ?? 0)) * (pricing.output_cost_per_token ?? 0);
+    const cacheWriteCost =
+      tokens.cacheWrite * (pricing.cache_creation_input_token_cost ?? 0);
+    const cacheReadCost =
+      tokens.cacheRead * (pricing.cache_read_input_token_cost ?? 0);
 
     return inputCost + outputCost + cacheWriteCost + cacheReadCost;
+  }
+}
+
+/**
+ * Clear pricing cache (for testing or forced refresh)
+ */
+export function clearPricingCache(): void {
+  try {
+    const cachePath = getCachePath();
+    if (fs.existsSync(cachePath)) {
+      fs.unlinkSync(cachePath);
+    }
+  } catch {
+    // Ignore errors
   }
 }

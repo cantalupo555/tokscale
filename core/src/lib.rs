@@ -9,11 +9,13 @@ use napi_derive::napi;
 
 mod aggregator;
 mod parser;
+mod pricing;
 mod scanner;
 mod sessions;
 
 pub use aggregator::*;
 pub use parser::*;
+pub use pricing::PricingData;
 pub use scanner::*;
 
 /// Version of the native module
@@ -288,4 +290,436 @@ pub fn scan_sessions(home_dir: Option<String>, sources: Option<Vec<String>>) -> 
         gemini_files: result.gemini_files.len() as i32,
         total_files: result.total_files() as i32,
     }
+}
+
+// =============================================================================
+// Pricing-aware APIs
+// =============================================================================
+
+/// Pricing data for a single model (passed from TypeScript)
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct ModelPricing {
+    pub input_cost_per_token: f64,
+    pub output_cost_per_token: f64,
+    pub cache_read_input_token_cost: Option<f64>,
+    pub cache_creation_input_token_cost: Option<f64>,
+}
+
+/// Entry in the pricing map
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct PricingEntry {
+    pub model_id: String,
+    pub pricing: ModelPricing,
+}
+
+/// Options for reports with pricing
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct ReportOptions {
+    /// Home directory path (defaults to user's home)
+    pub home_dir: Option<String>,
+    /// Sources to include: "opencode", "claude", "codex", "gemini"
+    pub sources: Option<Vec<String>>,
+    /// Pricing data for cost calculation
+    pub pricing: Vec<PricingEntry>,
+    /// Start date filter (YYYY-MM-DD)
+    pub since: Option<String>,
+    /// End date filter (YYYY-MM-DD)
+    pub until: Option<String>,
+    /// Filter to specific year
+    pub year: Option<String>,
+}
+
+/// Model usage summary for reports
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct ModelUsage {
+    pub source: String,
+    pub model: String,
+    pub provider: String,
+    pub input: i64,
+    pub output: i64,
+    pub cache_read: i64,
+    pub cache_write: i64,
+    pub reasoning: i64,
+    pub message_count: i32,
+    pub cost: f64,
+}
+
+/// Monthly usage summary
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct MonthlyUsage {
+    pub month: String,
+    pub models: Vec<String>,
+    pub input: i64,
+    pub output: i64,
+    pub cache_read: i64,
+    pub cache_write: i64,
+    pub message_count: i32,
+    pub cost: f64,
+}
+
+/// Model report result
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct ModelReport {
+    pub entries: Vec<ModelUsage>,
+    pub total_input: i64,
+    pub total_output: i64,
+    pub total_cache_read: i64,
+    pub total_cache_write: i64,
+    pub total_messages: i32,
+    pub total_cost: f64,
+    pub processing_time_ms: u32,
+}
+
+/// Monthly report result
+#[napi(object)]
+#[derive(Debug, Clone)]
+pub struct MonthlyReport {
+    pub entries: Vec<MonthlyUsage>,
+    pub total_cost: f64,
+    pub processing_time_ms: u32,
+}
+
+/// Convert pricing entries to internal PricingData
+fn build_pricing_data(entries: &[PricingEntry]) -> PricingData {
+    let mut pricing_data = PricingData::new();
+    for entry in entries {
+        pricing_data.add_model(
+            entry.model_id.clone(),
+            pricing::ModelPricing {
+                input_cost_per_token: entry.pricing.input_cost_per_token,
+                output_cost_per_token: entry.pricing.output_cost_per_token,
+                cache_read_input_token_cost: entry.pricing.cache_read_input_token_cost.unwrap_or(0.0),
+                cache_creation_input_token_cost: entry.pricing.cache_creation_input_token_cost.unwrap_or(0.0),
+            },
+        );
+    }
+    pricing_data
+}
+
+/// Parse all messages with pricing calculation
+fn parse_all_messages_with_pricing(
+    home_dir: &str,
+    sources: &[String],
+    pricing_data: &PricingData,
+) -> Vec<UnifiedMessage> {
+    let scan_result = scanner::scan_all_sources(home_dir, sources);
+    let mut all_messages: Vec<UnifiedMessage> = Vec::new();
+
+    // Parse OpenCode files in parallel
+    let opencode_messages: Vec<UnifiedMessage> = scan_result
+        .opencode_files
+        .par_iter()
+        .filter_map(|path| {
+            let mut msg = sessions::opencode::parse_opencode_file(path)?;
+            // Recalculate cost using pricing data
+            msg.cost = pricing_data.calculate_cost(
+                &msg.model_id,
+                msg.tokens.input,
+                msg.tokens.output,
+                msg.tokens.cache_read,
+                msg.tokens.cache_write,
+                msg.tokens.reasoning,
+            );
+            Some(msg)
+        })
+        .collect();
+    all_messages.extend(opencode_messages);
+
+    // Parse Claude files in parallel
+    let claude_messages: Vec<UnifiedMessage> = scan_result
+        .claude_files
+        .par_iter()
+        .flat_map(|path| {
+            sessions::claudecode::parse_claude_file(path)
+                .into_iter()
+                .map(|mut msg| {
+                    msg.cost = pricing_data.calculate_cost(
+                        &msg.model_id,
+                        msg.tokens.input,
+                        msg.tokens.output,
+                        msg.tokens.cache_read,
+                        msg.tokens.cache_write,
+                        msg.tokens.reasoning,
+                    );
+                    msg
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    all_messages.extend(claude_messages);
+
+    // Parse Codex files in parallel
+    let codex_messages: Vec<UnifiedMessage> = scan_result
+        .codex_files
+        .par_iter()
+        .flat_map(|path| {
+            sessions::codex::parse_codex_file(path)
+                .into_iter()
+                .map(|mut msg| {
+                    msg.cost = pricing_data.calculate_cost(
+                        &msg.model_id,
+                        msg.tokens.input,
+                        msg.tokens.output,
+                        msg.tokens.cache_read,
+                        msg.tokens.cache_write,
+                        msg.tokens.reasoning,
+                    );
+                    msg
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    all_messages.extend(codex_messages);
+
+    // Parse Gemini files in parallel
+    let gemini_messages: Vec<UnifiedMessage> = scan_result
+        .gemini_files
+        .par_iter()
+        .flat_map(|path| {
+            sessions::gemini::parse_gemini_file(path)
+                .into_iter()
+                .map(|mut msg| {
+                    // Gemini: thoughts count as output for billing
+                    msg.cost = pricing_data.calculate_cost(
+                        &msg.model_id,
+                        msg.tokens.input,
+                        msg.tokens.output + msg.tokens.reasoning,
+                        0, // Gemini cached tokens are free
+                        0,
+                        0,
+                    );
+                    msg
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    all_messages.extend(gemini_messages);
+
+    all_messages
+}
+
+/// Get model usage report with pricing calculation
+#[napi]
+pub fn get_model_report(options: ReportOptions) -> napi::Result<ModelReport> {
+    let start = Instant::now();
+
+    let home_dir = options
+        .home_dir
+        .clone()
+        .or_else(|| std::env::var("HOME").ok())
+        .unwrap_or_else(|| "/".to_string());
+
+    let sources = options.sources.clone().unwrap_or_else(|| {
+        vec![
+            "opencode".to_string(),
+            "claude".to_string(),
+            "codex".to_string(),
+            "gemini".to_string(),
+        ]
+    });
+
+    let pricing_data = build_pricing_data(&options.pricing);
+    let all_messages = parse_all_messages_with_pricing(&home_dir, &sources, &pricing_data);
+
+    // Apply date filters
+    let filtered = filter_messages_for_report(all_messages, &options);
+
+    // Aggregate by model
+    let mut model_map: std::collections::HashMap<String, ModelUsage> =
+        std::collections::HashMap::new();
+
+    for msg in filtered {
+        let key = format!("{}:{}:{}", msg.source, msg.provider_id, msg.model_id);
+        let entry = model_map.entry(key).or_insert_with(|| ModelUsage {
+            source: msg.source.clone(),
+            model: msg.model_id.clone(),
+            provider: msg.provider_id.clone(),
+            input: 0,
+            output: 0,
+            cache_read: 0,
+            cache_write: 0,
+            reasoning: 0,
+            message_count: 0,
+            cost: 0.0,
+        });
+
+        entry.input += msg.tokens.input;
+        entry.output += msg.tokens.output;
+        entry.cache_read += msg.tokens.cache_read;
+        entry.cache_write += msg.tokens.cache_write;
+        entry.reasoning += msg.tokens.reasoning;
+        entry.message_count += 1;
+        entry.cost += msg.cost;
+    }
+
+    let mut entries: Vec<ModelUsage> = model_map.into_values().collect();
+    // Sort by cost descending
+    entries.sort_by(|a, b| b.cost.partial_cmp(&a.cost).unwrap_or(std::cmp::Ordering::Equal));
+
+    let total_input: i64 = entries.iter().map(|e| e.input).sum();
+    let total_output: i64 = entries.iter().map(|e| e.output).sum();
+    let total_cache_read: i64 = entries.iter().map(|e| e.cache_read).sum();
+    let total_cache_write: i64 = entries.iter().map(|e| e.cache_write).sum();
+    let total_messages: i32 = entries.iter().map(|e| e.message_count).sum();
+    let total_cost: f64 = entries.iter().map(|e| e.cost).sum();
+
+    Ok(ModelReport {
+        entries,
+        total_input,
+        total_output,
+        total_cache_read,
+        total_cache_write,
+        total_messages,
+        total_cost,
+        processing_time_ms: start.elapsed().as_millis() as u32,
+    })
+}
+
+/// Get monthly usage report with pricing calculation
+#[napi]
+pub fn get_monthly_report(options: ReportOptions) -> napi::Result<MonthlyReport> {
+    let start = Instant::now();
+
+    let home_dir = options
+        .home_dir
+        .clone()
+        .or_else(|| std::env::var("HOME").ok())
+        .unwrap_or_else(|| "/".to_string());
+
+    let sources = options.sources.clone().unwrap_or_else(|| {
+        vec![
+            "opencode".to_string(),
+            "claude".to_string(),
+            "codex".to_string(),
+            "gemini".to_string(),
+        ]
+    });
+
+    let pricing_data = build_pricing_data(&options.pricing);
+    let all_messages = parse_all_messages_with_pricing(&home_dir, &sources, &pricing_data);
+
+    // Apply date filters
+    let filtered = filter_messages_for_report(all_messages, &options);
+
+    // Aggregate by month
+    let mut month_map: std::collections::HashMap<
+        String,
+        (std::collections::HashSet<String>, i64, i64, i64, i64, i32, f64),
+    > = std::collections::HashMap::new();
+
+    for msg in filtered {
+        // Extract month from date (YYYY-MM-DD -> YYYY-MM)
+        let month = if msg.date.len() >= 7 {
+            msg.date[..7].to_string()
+        } else {
+            continue;
+        };
+
+        let entry = month_map.entry(month).or_insert_with(|| {
+            (std::collections::HashSet::new(), 0, 0, 0, 0, 0, 0.0)
+        });
+
+        entry.0.insert(msg.model_id.clone());
+        entry.1 += msg.tokens.input;
+        entry.2 += msg.tokens.output;
+        entry.3 += msg.tokens.cache_read;
+        entry.4 += msg.tokens.cache_write;
+        entry.5 += 1;
+        entry.6 += msg.cost;
+    }
+
+    let mut entries: Vec<MonthlyUsage> = month_map
+        .into_iter()
+        .map(|(month, (models, input, output, cache_read, cache_write, msg_count, cost))| {
+            MonthlyUsage {
+                month,
+                models: models.into_iter().collect(),
+                input,
+                output,
+                cache_read,
+                cache_write,
+                message_count: msg_count,
+                cost,
+            }
+        })
+        .collect();
+
+    // Sort by month ascending
+    entries.sort_by(|a, b| a.month.cmp(&b.month));
+
+    let total_cost: f64 = entries.iter().map(|e| e.cost).sum();
+
+    Ok(MonthlyReport {
+        entries,
+        total_cost,
+        processing_time_ms: start.elapsed().as_millis() as u32,
+    })
+}
+
+/// Generate graph data with pricing calculation
+#[napi]
+pub fn generate_graph_with_pricing(options: ReportOptions) -> napi::Result<GraphResult> {
+    let start = Instant::now();
+
+    let home_dir = options
+        .home_dir
+        .clone()
+        .or_else(|| std::env::var("HOME").ok())
+        .unwrap_or_else(|| "/".to_string());
+
+    let sources = options.sources.clone().unwrap_or_else(|| {
+        vec![
+            "opencode".to_string(),
+            "claude".to_string(),
+            "codex".to_string(),
+            "gemini".to_string(),
+        ]
+    });
+
+    let pricing_data = build_pricing_data(&options.pricing);
+    let all_messages = parse_all_messages_with_pricing(&home_dir, &sources, &pricing_data);
+
+    // Apply date filters
+    let filtered = filter_messages_for_report(all_messages, &options);
+
+    // Aggregate by date
+    let contributions = aggregator::aggregate_by_date(filtered);
+
+    // Generate result
+    let processing_time_ms = start.elapsed().as_millis() as u32;
+    let result = aggregator::generate_graph_result(contributions, processing_time_ms);
+
+    Ok(result)
+}
+
+/// Filter messages by date range (for reports)
+fn filter_messages_for_report(
+    messages: Vec<UnifiedMessage>,
+    options: &ReportOptions,
+) -> Vec<UnifiedMessage> {
+    let mut filtered = messages;
+
+    // Filter by year
+    if let Some(year) = &options.year {
+        let year_prefix = format!("{}-", year);
+        filtered.retain(|m| m.date.starts_with(&year_prefix));
+    }
+
+    // Filter by since date
+    if let Some(since) = &options.since {
+        filtered.retain(|m| m.date.as_str() >= since.as_str());
+    }
+
+    // Filter by until date
+    if let Some(until) = &options.until {
+        filtered.retain(|m| m.date.as_str() <= until.as_str());
+    }
+
+    filtered
 }

@@ -11,6 +11,7 @@ let localFileExisted = false
 let loadError = null
 
 function isMusl() {
+  // For Node 10
   if (!process.report || typeof process.report.getReport !== 'function') {
     try {
       const lddPath = require('child_process').execSync('which ldd').toString().trim()
@@ -25,6 +26,84 @@ function isMusl() {
 }
 
 switch (platform) {
+  case 'android':
+    switch (arch) {
+      case 'arm64':
+        localFileExisted = existsSync(join(__dirname, 'token-tracker-core.android-arm64.node'))
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.android-arm64.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-android-arm64')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
+      case 'arm':
+        localFileExisted = existsSync(join(__dirname, 'token-tracker-core.android-arm-eabi.node'))
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.android-arm-eabi.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-android-arm-eabi')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
+      default:
+        throw new Error(`Unsupported architecture on Android ${arch}`)
+    }
+    break
+  case 'win32':
+    switch (arch) {
+      case 'x64':
+        localFileExisted = existsSync(
+          join(__dirname, 'token-tracker-core.win32-x64-msvc.node')
+        )
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.win32-x64-msvc.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-win32-x64-msvc')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
+      case 'ia32':
+        localFileExisted = existsSync(
+          join(__dirname, 'token-tracker-core.win32-ia32-msvc.node')
+        )
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.win32-ia32-msvc.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-win32-ia32-msvc')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
+      case 'arm64':
+        localFileExisted = existsSync(
+          join(__dirname, 'token-tracker-core.win32-arm64-msvc.node')
+        )
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.win32-arm64-msvc.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-win32-arm64-msvc')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
+      default:
+        throw new Error(`Unsupported architecture on Windows: ${arch}`)
+    }
+    break
   case 'darwin':
     localFileExisted = existsSync(join(__dirname, 'token-tracker-core.darwin-universal.node'))
     try {
@@ -49,7 +128,9 @@ switch (platform) {
         }
         break
       case 'arm64':
-        localFileExisted = existsSync(join(__dirname, 'token-tracker-core.darwin-arm64.node'))
+        localFileExisted = existsSync(
+          join(__dirname, 'token-tracker-core.darwin-arm64.node')
+        )
         try {
           if (localFileExisted) {
             nativeBinding = require('./token-tracker-core.darwin-arm64.node')
@@ -64,11 +145,28 @@ switch (platform) {
         throw new Error(`Unsupported architecture on macOS: ${arch}`)
     }
     break
+  case 'freebsd':
+    if (arch !== 'x64') {
+      throw new Error(`Unsupported architecture on FreeBSD: ${arch}`)
+    }
+    localFileExisted = existsSync(join(__dirname, 'token-tracker-core.freebsd-x64.node'))
+    try {
+      if (localFileExisted) {
+        nativeBinding = require('./token-tracker-core.freebsd-x64.node')
+      } else {
+        nativeBinding = require('@token-tracker/core-freebsd-x64')
+      }
+    } catch (e) {
+      loadError = e
+    }
+    break
   case 'linux':
     switch (arch) {
       case 'x64':
         if (isMusl()) {
-          localFileExisted = existsSync(join(__dirname, 'token-tracker-core.linux-x64-musl.node'))
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-x64-musl.node')
+          )
           try {
             if (localFileExisted) {
               nativeBinding = require('./token-tracker-core.linux-x64-musl.node')
@@ -79,7 +177,9 @@ switch (platform) {
             loadError = e
           }
         } else {
-          localFileExisted = existsSync(join(__dirname, 'token-tracker-core.linux-x64-gnu.node'))
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-x64-gnu.node')
+          )
           try {
             if (localFileExisted) {
               nativeBinding = require('./token-tracker-core.linux-x64-gnu.node')
@@ -93,7 +193,9 @@ switch (platform) {
         break
       case 'arm64':
         if (isMusl()) {
-          localFileExisted = existsSync(join(__dirname, 'token-tracker-core.linux-arm64-musl.node'))
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-arm64-musl.node')
+          )
           try {
             if (localFileExisted) {
               nativeBinding = require('./token-tracker-core.linux-arm64-musl.node')
@@ -104,7 +206,9 @@ switch (platform) {
             loadError = e
           }
         } else {
-          localFileExisted = existsSync(join(__dirname, 'token-tracker-core.linux-arm64-gnu.node'))
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-arm64-gnu.node')
+          )
           try {
             if (localFileExisted) {
               nativeBinding = require('./token-tracker-core.linux-arm64-gnu.node')
@@ -116,38 +220,80 @@ switch (platform) {
           }
         }
         break
+      case 'arm':
+        if (isMusl()) {
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-arm-musleabihf.node')
+          )
+          try {
+            if (localFileExisted) {
+              nativeBinding = require('./token-tracker-core.linux-arm-musleabihf.node')
+            } else {
+              nativeBinding = require('@token-tracker/core-linux-arm-musleabihf')
+            }
+          } catch (e) {
+            loadError = e
+          }
+        } else {
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-arm-gnueabihf.node')
+          )
+          try {
+            if (localFileExisted) {
+              nativeBinding = require('./token-tracker-core.linux-arm-gnueabihf.node')
+            } else {
+              nativeBinding = require('@token-tracker/core-linux-arm-gnueabihf')
+            }
+          } catch (e) {
+            loadError = e
+          }
+        }
+        break
+      case 'riscv64':
+        if (isMusl()) {
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-riscv64-musl.node')
+          )
+          try {
+            if (localFileExisted) {
+              nativeBinding = require('./token-tracker-core.linux-riscv64-musl.node')
+            } else {
+              nativeBinding = require('@token-tracker/core-linux-riscv64-musl')
+            }
+          } catch (e) {
+            loadError = e
+          }
+        } else {
+          localFileExisted = existsSync(
+            join(__dirname, 'token-tracker-core.linux-riscv64-gnu.node')
+          )
+          try {
+            if (localFileExisted) {
+              nativeBinding = require('./token-tracker-core.linux-riscv64-gnu.node')
+            } else {
+              nativeBinding = require('@token-tracker/core-linux-riscv64-gnu')
+            }
+          } catch (e) {
+            loadError = e
+          }
+        }
+        break
+      case 's390x':
+        localFileExisted = existsSync(
+          join(__dirname, 'token-tracker-core.linux-s390x-gnu.node')
+        )
+        try {
+          if (localFileExisted) {
+            nativeBinding = require('./token-tracker-core.linux-s390x-gnu.node')
+          } else {
+            nativeBinding = require('@token-tracker/core-linux-s390x-gnu')
+          }
+        } catch (e) {
+          loadError = e
+        }
+        break
       default:
         throw new Error(`Unsupported architecture on Linux: ${arch}`)
-    }
-    break
-  case 'win32':
-    switch (arch) {
-      case 'x64':
-        localFileExisted = existsSync(join(__dirname, 'token-tracker-core.win32-x64-msvc.node'))
-        try {
-          if (localFileExisted) {
-            nativeBinding = require('./token-tracker-core.win32-x64-msvc.node')
-          } else {
-            nativeBinding = require('@token-tracker/core-win32-x64-msvc')
-          }
-        } catch (e) {
-          loadError = e
-        }
-        break
-      case 'arm64':
-        localFileExisted = existsSync(join(__dirname, 'token-tracker-core.win32-arm64-msvc.node'))
-        try {
-          if (localFileExisted) {
-            nativeBinding = require('./token-tracker-core.win32-arm64-msvc.node')
-          } else {
-            nativeBinding = require('@token-tracker/core-win32-arm64-msvc')
-          }
-        } catch (e) {
-          loadError = e
-        }
-        break
-      default:
-        throw new Error(`Unsupported architecture on Windows: ${arch}`)
     }
     break
   default:
@@ -158,12 +304,23 @@ if (!nativeBinding) {
   if (loadError) {
     throw loadError
   }
-  throw new Error('Failed to load native binding')
+  throw new Error(`Failed to load native binding`)
 }
 
-const { version, healthCheck, generateGraph, scanSessions } = nativeBinding
+const {
+  version,
+  healthCheck,
+  generateGraph,
+  scanSessions,
+  getModelReport,
+  getMonthlyReport,
+  generateGraphWithPricing,
+} = nativeBinding
 
 module.exports.version = version
 module.exports.healthCheck = healthCheck
 module.exports.generateGraph = generateGraph
 module.exports.scanSessions = scanSessions
+module.exports.getModelReport = getModelReport
+module.exports.getMonthlyReport = getMonthlyReport
+module.exports.generateGraphWithPricing = generateGraphWithPricing

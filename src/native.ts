@@ -1,16 +1,20 @@
 /**
- * Native module loader with TypeScript fallback
+ * Native module loader for Rust core
  * 
- * Attempts to load the native Rust core module, falls back to
- * pure TypeScript implementation if not available.
+ * Exposes all Rust functions with proper TypeScript types.
  */
 
+import type { PricingEntry } from "./pricing.js";
 import type {
   TokenContributionData,
   GraphOptions as TSGraphOptions,
+  SourceType,
 } from "./graph-types.js";
 
-// Types from native module
+// =============================================================================
+// Types matching Rust exports
+// =============================================================================
+
 interface NativeGraphOptions {
   homeDir?: string;
   sources?: string[];
@@ -93,14 +97,81 @@ interface NativeGraphResult {
   contributions: NativeDailyContribution[];
 }
 
+// Types for pricing-aware APIs
+interface NativePricingEntry {
+  modelId: string;
+  pricing: {
+    inputCostPerToken: number;
+    outputCostPerToken: number;
+    cacheReadInputTokenCost?: number;
+    cacheCreationInputTokenCost?: number;
+  };
+}
+
+interface NativeReportOptions {
+  homeDir?: string;
+  sources?: string[];
+  pricing: NativePricingEntry[];
+  since?: string;
+  until?: string;
+  year?: string;
+}
+
+interface NativeModelUsage {
+  source: string;
+  model: string;
+  provider: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning: number;
+  messageCount: number;
+  cost: number;
+}
+
+interface NativeModelReport {
+  entries: NativeModelUsage[];
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  totalCacheWrite: number;
+  totalMessages: number;
+  totalCost: number;
+  processingTimeMs: number;
+}
+
+interface NativeMonthlyUsage {
+  month: string;
+  models: string[];
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  messageCount: number;
+  cost: number;
+}
+
+interface NativeMonthlyReport {
+  entries: NativeMonthlyUsage[];
+  totalCost: number;
+  processingTimeMs: number;
+}
+
 interface NativeCore {
   version(): string;
   healthCheck(): string;
   generateGraph(options: NativeGraphOptions): NativeGraphResult;
+  generateGraphWithPricing(options: NativeReportOptions): NativeGraphResult;
   scanSessions(homeDir?: string, sources?: string[]): NativeScanStats;
+  getModelReport(options: NativeReportOptions): NativeModelReport;
+  getMonthlyReport(options: NativeReportOptions): NativeMonthlyReport;
 }
 
-// Try to load native module
+// =============================================================================
+// Module loading
+// =============================================================================
+
 let nativeCore: NativeCore | null = null;
 let loadError: Error | null = null;
 
@@ -117,6 +188,10 @@ try {
     loadError = e2 as Error;
   }
 }
+
+// =============================================================================
+// Public API
+// =============================================================================
 
 /**
  * Check if native module is available
@@ -140,11 +215,25 @@ export function getNativeVersion(): string | null {
 }
 
 /**
+ * Scan sessions using native module
+ */
+export function scanSessionsNative(homeDir?: string, sources?: string[]): NativeScanStats | null {
+  if (!nativeCore) {
+    return null;
+  }
+  return nativeCore.scanSessions(homeDir, sources);
+}
+
+// =============================================================================
+// Graph generation
+// =============================================================================
+
+/**
  * Convert TypeScript graph options to native format
  */
 function toNativeOptions(options: TSGraphOptions): NativeGraphOptions {
   return {
-    homeDir: undefined, // Use default
+    homeDir: undefined,
     sources: options.sources,
     since: options.since,
     until: options.until,
@@ -172,7 +261,7 @@ function fromNativeResult(result: NativeGraphResult): TokenContributionData {
       activeDays: result.summary.activeDays,
       averagePerDay: result.summary.averagePerDay,
       maxCostInSingleDay: result.summary.maxCostInSingleDay,
-      sources: result.summary.sources as any[],
+      sources: result.summary.sources as SourceType[],
       models: result.summary.models,
     },
     years: result.years.map((y) => ({
@@ -200,7 +289,7 @@ function fromNativeResult(result: NativeGraphResult): TokenContributionData {
         reasoning: c.tokenBreakdown.reasoning,
       },
       sources: c.sources.map((s) => ({
-        source: s.source as any,
+        source: s.source as SourceType,
         modelId: s.modelId,
         providerId: s.providerId,
         tokens: {
@@ -218,34 +307,131 @@ function fromNativeResult(result: NativeGraphResult): TokenContributionData {
 }
 
 /**
- * Generate graph data using native module
- * Throws if native module is not available
+ * Generate graph data using native module (without pricing - uses embedded costs)
+ * @deprecated Use generateGraphWithPricing instead
  */
 export function generateGraphNative(options: TSGraphOptions = {}): TokenContributionData {
   if (!nativeCore) {
     throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
   }
-  
+
   const nativeOptions = toNativeOptions(options);
   const result = nativeCore.generateGraph(nativeOptions);
   return fromNativeResult(result);
 }
 
 /**
- * Get processing time from last native call (in milliseconds)
+ * Generate graph data with pricing calculation
  */
-export function getLastProcessingTimeMs(result: TokenContributionData): number | null {
-  // The native module adds processingTimeMs but we don't expose it in the TS type
-  // This is a helper to get it if needed
-  return (result.meta as any).processingTimeMs ?? null;
+export function generateGraphWithPricing(
+  options: TSGraphOptions & { pricing: PricingEntry[] }
+): TokenContributionData {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeReportOptions = {
+    homeDir: undefined,
+    sources: options.sources,
+    pricing: options.pricing,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  const result = nativeCore.generateGraphWithPricing(nativeOptions);
+  return fromNativeResult(result);
+}
+
+// =============================================================================
+// Reports
+// =============================================================================
+
+export interface ModelUsage {
+  source: string;
+  model: string;
+  provider: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning: number;
+  messageCount: number;
+  cost: number;
+}
+
+export interface ModelReport {
+  entries: ModelUsage[];
+  totalInput: number;
+  totalOutput: number;
+  totalCacheRead: number;
+  totalCacheWrite: number;
+  totalMessages: number;
+  totalCost: number;
+  processingTimeMs: number;
+}
+
+export interface MonthlyUsage {
+  month: string;
+  models: string[];
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  messageCount: number;
+  cost: number;
+}
+
+export interface MonthlyReport {
+  entries: MonthlyUsage[];
+  totalCost: number;
+  processingTimeMs: number;
+}
+
+export interface ReportOptions {
+  sources?: SourceType[];
+  pricing: PricingEntry[];
+  since?: string;
+  until?: string;
+  year?: string;
 }
 
 /**
- * Scan sessions using native module
+ * Get model usage report using native module
  */
-export function scanSessionsNative(homeDir?: string, sources?: string[]): NativeScanStats | null {
+export function getModelReportNative(options: ReportOptions): ModelReport {
   if (!nativeCore) {
-    return null;
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
   }
-  return nativeCore.scanSessions(homeDir, sources);
+
+  const nativeOptions: NativeReportOptions = {
+    homeDir: undefined,
+    sources: options.sources,
+    pricing: options.pricing,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  return nativeCore.getModelReport(nativeOptions);
+}
+
+/**
+ * Get monthly usage report using native module
+ */
+export function getMonthlyReportNative(options: ReportOptions): MonthlyReport {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeReportOptions = {
+    homeDir: undefined,
+    sources: options.sources,
+    pricing: options.pricing,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  return nativeCore.getMonthlyReport(nativeOptions);
 }
