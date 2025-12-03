@@ -20,7 +20,7 @@ Add social platform features to token-tracker: Users submit data from CLI, view 
 token-tracker is currently a local CLI tool that parses OpenCode/Claude Code/Codex/Gemini session data to visualize token usage. We're extending it into a social platform (like viberank) where users can share and compare their usage.
 
 # Execution Started
-is_execution_started = FALSE
+is_execution_started = TRUE
 
 # All Goals Accomplished
 is_all_goals_accomplished = FALSE
@@ -29,9 +29,7 @@ is_all_goals_accomplished = FALSE
 parallel_requested = TRUE
 
 # Current Task
-- Not started yet.
-   - Set `is_execution_started` to TRUE when starting.
-   - DO NOT start until user explicitly says "start working".
+- Task 1: Install database and auth dependencies
 
 # Prerequisites
 
