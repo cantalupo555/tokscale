@@ -25,6 +25,7 @@ Get real-time pricing calculations using [LiteLLM's pricing data](https://github
 - **Dark/Light/System themes** - GitHub Primer design system with 3-way theme toggle
 - **Flexible filtering** - Filter by platform, date range, or year
 - **Export to JSON** - Generate data for external visualization tools
+- **Social Platform** - Share your usage, compete on leaderboards, and view public profiles
 
 ## Installation
 
@@ -113,6 +114,28 @@ token-tracker graph --opencode --claude
 
 # Show processing time benchmark
 token-tracker graph --output data.json --benchmark
+```
+
+### Social Platform Commands
+
+```bash
+# Login to Token Tracker (opens browser for GitHub auth)
+token-tracker login
+
+# Check who you're logged in as
+token-tracker whoami
+
+# Submit your usage data to the leaderboard
+token-tracker submit
+
+# Submit with filters
+token-tracker submit --opencode --claude --since 2024-01-01
+
+# Preview what would be submitted (dry run)
+token-tracker submit --dry-run
+
+# Logout
+token-tracker logout
 ```
 
 ### Example Output
@@ -276,7 +299,48 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and load your JSON data exported from the CLI.
+Open [http://localhost:3000](http://localhost:3000) to access the social platform.
+
+## Social Platform
+
+Token Tracker includes a social platform where you can share your usage data and compete with other developers.
+
+### Features
+
+- **Leaderboard** - See who's using the most tokens across all platforms
+- **User Profiles** - Public profiles with contribution graphs and statistics
+- **Period Filtering** - View stats for all time, this month, or this week
+- **GitHub Integration** - Login with your GitHub account
+- **Local Viewer** - View your data privately without submitting
+
+### Getting Started
+
+1. **Login** - Run `token-tracker login` to authenticate via GitHub
+2. **Submit** - Run `token-tracker submit` to upload your usage data
+3. **View** - Visit the web platform to see your profile and the leaderboard
+
+### Data Validation
+
+Submitted data goes through Level 1 validation:
+- Mathematical consistency (totals match, no negatives)
+- No future dates
+- Required fields present
+- Duplicate detection
+
+### Self-Hosting
+
+To run your own instance:
+
+1. Set up a PostgreSQL database (Neon, Vercel Postgres, or self-hosted)
+2. Configure environment variables:
+   ```bash
+   DATABASE_URL=postgresql://...
+   GITHUB_CLIENT_ID=your_client_id
+   GITHUB_CLIENT_SECRET=your_client_secret
+   NEXT_PUBLIC_URL=https://your-domain.com
+   ```
+3. Run database migrations: `cd frontend && npx drizzle-kit push`
+4. Deploy to Vercel or your preferred platform
 
 ### Generating Data for Frontend
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
+import { LeaderboardSkeleton } from "@/components/Skeleton";
 
 type Period = "all" | "month" | "week";
 
@@ -82,46 +83,44 @@ export default function LeaderboardPage() {
             See who's using the most AI tokens
           </p>
 
-          {data && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Tokens
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {formatNumber(data.stats.totalTokens)}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Total Cost
-                </p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {formatCurrency(data.stats.totalCost)}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Users
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.stats.uniqueUsers}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Submissions
-                </p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {data.stats.totalSubmissions}
-                </p>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Total Tokens
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                {data ? formatNumber(data.stats.totalTokens) : "-"}
+              </p>
             </div>
-          )}
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Total Cost
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                {data ? formatCurrency(data.stats.totalCost) : "-"}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Users
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                {data ? data.stats.uniqueUsers : "-"}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3 sm:p-4">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Submissions
+              </p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                {data ? data.stats.totalSubmissions : "-"}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Period Filter */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2">
           {(["all", "month", "week"] as Period[]).map((p) => (
             <button
               key={p}
@@ -141,12 +140,11 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Leaderboard Table */}
+        {isLoading ? (
+          <LeaderboardSkeleton />
+        ) : (
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-          {isLoading ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              Loading...
-            </div>
-          ) : !data || data.users.length === 0 ? (
+          {!data || data.users.length === 0 ? (
             <div className="p-8 text-center">
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 No submissions yet. Be the first!
@@ -160,116 +158,120 @@ export default function LeaderboardPage() {
             </div>
           ) : (
             <>
-              <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Rank
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Tokens
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Cost
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden sm:table-cell">
-                      Submissions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                  {data.users.map((user) => (
-                    <tr
-                      key={user.userId}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`text-lg font-bold ${
-                            user.rank === 1
-                              ? "text-yellow-500"
-                              : user.rank === 2
-                              ? "text-gray-400"
-                              : user.rank === 3
-                              ? "text-amber-600"
-                              : "text-gray-500 dark:text-gray-400"
-                          }`}
-                        >
-                          #{user.rank}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Link
-                          href={`/profile/${user.username}`}
-                          className="flex items-center gap-3 group"
-                        >
-                          {user.avatarUrl ? (
-                            <img
-                              src={user.avatarUrl}
-                              alt={user.username}
-                              className="w-10 h-10 rounded-full"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-medium">
-                              {user.username[0].toUpperCase()}
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-medium text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                              {user.displayName || user.username}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              @{user.username}
-                            </p>
-                          </div>
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {formatNumber(user.totalTokens)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className="font-medium text-green-600 dark:text-green-400">
-                          {formatCurrency(user.totalCost)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right hidden sm:table-cell">
-                        <span className="text-gray-500 dark:text-gray-400">
-                          {user.submissionCount}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[500px]">
+                  <thead className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
+                    <tr>
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Rank
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tokens
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Cost
+                      </th>
+                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
+                        Submissions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                    {data.users.map((user) => (
+                      <tr
+                        key={user.userId}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      >
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <span
+                            className={`text-base sm:text-lg font-bold ${
+                              user.rank === 1
+                                ? "text-yellow-500"
+                                : user.rank === 2
+                                ? "text-gray-400"
+                                : user.rank === 3
+                                ? "text-amber-600"
+                                : "text-gray-500 dark:text-gray-400"
+                            }`}
+                          >
+                            #{user.rank}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <Link
+                            href={`/profile/${user.username}`}
+                            className="flex items-center gap-2 sm:gap-3 group"
+                          >
+                            {user.avatarUrl ? (
+                              <img
+                                src={user.avatarUrl}
+                                alt={user.username}
+                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center text-white font-medium text-sm sm:text-base">
+                                {user.username[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm sm:text-base text-gray-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors truncate max-w-[120px] sm:max-w-none">
+                                {user.displayName || user.username}
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate max-w-[120px] sm:max-w-none">
+                                @{user.username}
+                              </p>
+                            </div>
+                          </Link>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
+                          <span className="font-medium text-sm sm:text-base text-gray-900 dark:text-white">
+                            {formatNumber(user.totalTokens)}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
+                          <span className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
+                            {formatCurrency(user.totalCost)}
+                          </span>
+                        </td>
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right hidden md:table-cell">
+                          <span className="text-gray-500 dark:text-gray-400">
+                            {user.submissionCount}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Pagination */}
               {data.pagination.totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {(data.pagination.page - 1) * data.pagination.limit + 1} to{" "}
-                    {Math.min(
+                <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-center sm:text-left">
+                    Showing {(data.pagination.page - 1) * data.pagination.limit + 1}-{Math.min(
                       data.pagination.page * data.pagination.limit,
                       data.pagination.totalUsers
                     )}{" "}
-                    of {data.pagination.totalUsers} users
+                    of {data.pagination.totalUsers}
                   </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setPage(page - 1)}
                       disabled={!data.pagination.hasPrev}
-                      className="px-3 py-1 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      Previous
+                      Prev
                     </button>
+                    <span className="px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400">
+                      {data.pagination.page}/{data.pagination.totalPages}
+                    </span>
                     <button
                       onClick={() => setPage(page + 1)}
                       disabled={!data.pagination.hasNext}
-                      className="px-3 py-1 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Next
                     </button>
@@ -279,6 +281,7 @@ export default function LeaderboardPage() {
             </>
           )}
         </div>
+        )}
 
         {/* CLI Instructions */}
         <div className="mt-8 p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
