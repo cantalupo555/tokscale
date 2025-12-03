@@ -19,7 +19,6 @@ import {
   readCursorUsage,
   getCursorCredentialsPath,
   syncCursorCache,
-  getCursorCacheStatus,
 } from "./cursor.js";
 import {
   createUsageTable,
@@ -32,11 +31,13 @@ import {
 import {
   isNativeAvailable,
   getNativeVersion,
-  getModelReportNative,
-  getMonthlyReportNative,
-  generateGraphWithPricing,
+  parseLocalSourcesNative,
+  finalizeReportNative,
+  finalizeMonthlyReportNative,
+  finalizeGraphNative,
   type ModelReport,
   type MonthlyReport,
+  type ParsedMessages,
 } from "./native.js";
 import { createSpinner } from "./spinner.js";
 import * as fs from "node:fs";
@@ -352,19 +353,51 @@ async function syncCursorData(): Promise<CursorSyncResult> {
   };
 }
 
-/**
- * Load pricing data and sync Cursor cache in parallel.
- * These operations are independent and can run concurrently.
- */
-async function loadDataSources(): Promise<{
+interface LoadedDataSources {
   fetcher: PricingFetcher;
   cursorSync: CursorSyncResult;
-}> {
-  const [cursorSync, fetcher] = await Promise.all([
+  localMessages: ParsedMessages | null;
+}
+
+/**
+ * Load all data sources in parallel (two-phase optimization):
+ * - Cursor API sync (network)
+ * - Pricing fetch (network)
+ * - Local file parsing (CPU/IO) - OpenCode, Claude, Codex, Gemini
+ * 
+ * This overlaps network I/O with local file parsing for better performance.
+ */
+async function loadDataSourcesParallel(
+  localSources: SourceType[],
+  dateFilters: { since?: string; until?: string; year?: string }
+): Promise<LoadedDataSources> {
+  // Use Promise.allSettled for graceful degradation
+  const [cursorResult, pricingResult, localResult] = await Promise.allSettled([
     syncCursorData(),
     fetchPricingData(),
+    // Parse local sources in parallel (excludes Cursor)
+    Promise.resolve().then(() => parseLocalSourcesNative({
+      sources: localSources.filter(s => s !== 'cursor'),
+      since: dateFilters.since,
+      until: dateFilters.until,
+      year: dateFilters.year,
+    })),
   ]);
-  return { fetcher, cursorSync };
+
+  // Handle partial failures gracefully
+  const cursorSync: CursorSyncResult = cursorResult.status === 'fulfilled'
+    ? cursorResult.value
+    : { attempted: true, synced: false, rows: 0, error: 'Cursor sync failed' };
+
+  const fetcher: PricingFetcher = pricingResult.status === 'fulfilled'
+    ? pricingResult.value
+    : new PricingFetcher(); // Empty pricing → costs = 0
+
+  const localMessages: ParsedMessages | null = localResult.status === 'fulfilled'
+    ? localResult.value
+    : null;
+
+  return { fetcher, cursorSync, localMessages };
 }
 
 async function showModelReport(options: FilterOptions & DateFilterOptions & { benchmark?: boolean }) {
@@ -385,21 +418,30 @@ async function showModelReport(options: FilterOptions & DateFilterOptions & { be
   const spinner = createSpinner({ color: "cyan" });
   spinner.start(pc.gray("Loading data sources..."));
 
-  // Load pricing and sync Cursor data in parallel
-  const { fetcher, cursorSync } = await loadDataSources();
-  const pricingEntries = fetcher.toPricingEntries();
-
-  spinner.update(pc.gray("Processing session data..."));
-  const startTime = performance.now();
-
   const dateFilters = getDateFilters(options);
   const enabledSources = getEnabledSources(options);
+  // Filter out cursor for local parsing (it's synced separately via network)
+  const localSources: SourceType[] = (enabledSources || ['opencode', 'claude', 'codex', 'gemini', 'cursor'])
+    .filter(s => s !== 'cursor');
+  const includeCursor = !enabledSources || enabledSources.includes('cursor');
+
+  // Two-phase parallel loading: network (Cursor + pricing) overlaps with local file parsing
+  const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(localSources, dateFilters);
   
+  if (!localMessages) {
+    spinner.error('Failed to parse local session files');
+    process.exit(1);
+  }
+
+  spinner.update(pc.gray("Finalizing report..."));
+  const startTime = performance.now();
+
   let report: ModelReport;
   try {
-    report = getModelReportNative({
-      sources: enabledSources,
-      pricing: pricingEntries,
+    report = finalizeReportNative({
+      localMessages,
+      pricing: fetcher.toPricingEntries(),
+      includeCursor: includeCursor && cursorSync.synced,
       since: dateFilters.since,
       until: dateFilters.until,
       year: dateFilters.year,
@@ -490,20 +532,30 @@ async function showMonthlyReport(options: FilterOptions & DateFilterOptions & { 
   const spinner = createSpinner({ color: "cyan" });
   spinner.start(pc.gray("Loading data sources..."));
 
-  // Load pricing and sync Cursor data in parallel
-  const { fetcher, cursorSync } = await loadDataSources();
-  const pricingEntries = fetcher.toPricingEntries();
-
-  spinner.update(pc.gray("Processing session data..."));
-  const startTime = performance.now();
-
   const dateFilters = getDateFilters(options);
+  const enabledSources = getEnabledSources(options);
+  // Filter out cursor for local parsing (it's synced separately via network)
+  const localSources: SourceType[] = (enabledSources || ['opencode', 'claude', 'codex', 'gemini', 'cursor'])
+    .filter(s => s !== 'cursor');
+  const includeCursor = !enabledSources || enabledSources.includes('cursor');
+
+  // Two-phase parallel loading: network (Cursor + pricing) overlaps with local file parsing
+  const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(localSources, dateFilters);
+  
+  if (!localMessages) {
+    spinner.error('Failed to parse local session files');
+    process.exit(1);
+  }
+
+  spinner.update(pc.gray("Finalizing report..."));
+  const startTime = performance.now();
 
   let report: MonthlyReport;
   try {
-    report = getMonthlyReportNative({
-      sources: getEnabledSources(options),
-      pricing: pricingEntries,
+    report = finalizeMonthlyReportNative({
+      localMessages,
+      pricing: fetcher.toPricingEntries(),
+      includeCursor: includeCursor && cursorSync.synced,
       since: dateFilters.since,
       until: dateFilters.until,
       year: dateFilters.year,
@@ -577,21 +629,29 @@ async function handleGraphCommand(options: GraphCommandOptions) {
   const spinner = options.output ? createSpinner({ color: "cyan" }) : null;
   spinner?.start(pc.gray("Loading data sources..."));
 
-  // Load pricing and sync Cursor data in parallel
-  const { fetcher, cursorSync } = await loadDataSources();
-  const pricingEntries = fetcher.toPricingEntries();
+  const dateFilters = getDateFilters(options);
+  const enabledSources = getEnabledSources(options);
+  // Filter out cursor for local parsing (it's synced separately via network)
+  const localSources: SourceType[] = (enabledSources || ['opencode', 'claude', 'codex', 'gemini', 'cursor'])
+    .filter(s => s !== 'cursor');
+  const includeCursor = !enabledSources || enabledSources.includes('cursor');
+
+  // Two-phase parallel loading: network (Cursor + pricing) overlaps with local file parsing
+  const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(localSources, dateFilters);
+  
+  if (!localMessages) {
+    spinner?.error('Failed to parse local session files');
+    process.exit(1);
+  }
 
   spinner?.update(pc.gray("Generating graph data..."));
   const startTime = performance.now();
 
-  // Determine which sources to include
-  const sources = getEnabledSources(options);
-  const dateFilters = getDateFilters(options);
-
   // Generate graph data using native module
-  const data = generateGraphWithPricing({
-    sources,
-    pricing: pricingEntries,
+  const data = finalizeGraphNative({
+    localMessages,
+    pricing: fetcher.toPricingEntries(),
+    includeCursor: includeCursor && cursorSync.synced,
     since: dateFilters.since,
     until: dateFilters.until,
     year: dateFilters.year,

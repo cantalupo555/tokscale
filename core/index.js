@@ -315,6 +315,11 @@ const {
   getModelReport,
   getMonthlyReport,
   generateGraphWithPricing,
+  // Two-phase processing functions (parallel optimization)
+  parseLocalSources,
+  finalizeReport,
+  finalizeMonthlyReport,
+  finalizeGraph,
 } = nativeBinding
 
 module.exports.version = version
@@ -324,3 +329,8 @@ module.exports.scanSessions = scanSessions
 module.exports.getModelReport = getModelReport
 module.exports.getMonthlyReport = getMonthlyReport
 module.exports.generateGraphWithPricing = generateGraphWithPricing
+// Two-phase processing functions (parallel optimization)
+module.exports.parseLocalSources = parseLocalSources
+module.exports.finalizeReport = finalizeReport
+module.exports.finalizeMonthlyReport = finalizeMonthlyReport
+module.exports.finalizeGraph = finalizeGraph

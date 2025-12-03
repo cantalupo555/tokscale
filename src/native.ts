@@ -158,6 +158,47 @@ interface NativeMonthlyReport {
   processingTimeMs: number;
 }
 
+// Types for two-phase processing (parallel optimization)
+interface NativeParsedMessage {
+  source: string;
+  modelId: string;
+  providerId: string;
+  timestamp: number;
+  date: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning: number;
+}
+
+interface NativeParsedMessages {
+  messages: NativeParsedMessage[];
+  opencodeCount: number;
+  claudeCount: number;
+  codexCount: number;
+  geminiCount: number;
+  processingTimeMs: number;
+}
+
+interface NativeLocalParseOptions {
+  homeDir?: string;
+  sources?: string[];
+  since?: string;
+  until?: string;
+  year?: string;
+}
+
+interface NativeFinalizeReportOptions {
+  homeDir?: string;
+  localMessages: NativeParsedMessages;
+  pricing: NativePricingEntry[];
+  includeCursor: boolean;
+  since?: string;
+  until?: string;
+  year?: string;
+}
+
 interface NativeCore {
   version(): string;
   healthCheck(): string;
@@ -166,6 +207,11 @@ interface NativeCore {
   scanSessions(homeDir?: string, sources?: string[]): NativeScanStats;
   getModelReport(options: NativeReportOptions): NativeModelReport;
   getMonthlyReport(options: NativeReportOptions): NativeMonthlyReport;
+  // Two-phase processing (parallel optimization)
+  parseLocalSources(options: NativeLocalParseOptions): NativeParsedMessages;
+  finalizeReport(options: NativeFinalizeReportOptions): NativeModelReport;
+  finalizeMonthlyReport(options: NativeFinalizeReportOptions): NativeMonthlyReport;
+  finalizeGraph(options: NativeFinalizeReportOptions): NativeGraphResult;
 }
 
 // =============================================================================
@@ -434,4 +480,128 @@ export function getMonthlyReportNative(options: ReportOptions): MonthlyReport {
   };
 
   return nativeCore.getMonthlyReport(nativeOptions);
+}
+
+// =============================================================================
+// Two-Phase Processing (Parallel Optimization)
+// =============================================================================
+
+export interface ParsedMessages {
+  messages: Array<{
+    source: string;
+    modelId: string;
+    providerId: string;
+    timestamp: number;
+    date: string;
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    reasoning: number;
+  }>;
+  opencodeCount: number;
+  claudeCount: number;
+  codexCount: number;
+  geminiCount: number;
+  processingTimeMs: number;
+}
+
+export interface LocalParseOptions {
+  sources?: SourceType[];
+  since?: string;
+  until?: string;
+  year?: string;
+}
+
+export interface FinalizeOptions {
+  localMessages: ParsedMessages;
+  pricing: PricingEntry[];
+  includeCursor: boolean;
+  since?: string;
+  until?: string;
+  year?: string;
+}
+
+/**
+ * Parse local sources only (OpenCode, Claude, Codex, Gemini - NO Cursor)
+ * This can run in parallel with network operations (Cursor sync, pricing fetch)
+ */
+export function parseLocalSourcesNative(options: LocalParseOptions): ParsedMessages {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeLocalParseOptions = {
+    homeDir: undefined,
+    sources: options.sources,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  return nativeCore.parseLocalSources(nativeOptions);
+}
+
+/**
+ * Finalize model report: apply pricing to local messages, add Cursor, aggregate
+ */
+export function finalizeReportNative(options: FinalizeOptions): ModelReport {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeFinalizeReportOptions = {
+    homeDir: undefined,
+    localMessages: options.localMessages,
+    pricing: options.pricing,
+    includeCursor: options.includeCursor,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  return nativeCore.finalizeReport(nativeOptions);
+}
+
+/**
+ * Finalize monthly report: apply pricing to local messages, add Cursor, aggregate
+ */
+export function finalizeMonthlyReportNative(options: FinalizeOptions): MonthlyReport {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeFinalizeReportOptions = {
+    homeDir: undefined,
+    localMessages: options.localMessages,
+    pricing: options.pricing,
+    includeCursor: options.includeCursor,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  return nativeCore.finalizeMonthlyReport(nativeOptions);
+}
+
+/**
+ * Finalize graph: apply pricing to local messages, add Cursor, aggregate
+ */
+export function finalizeGraphNative(options: FinalizeOptions): TokenContributionData {
+  if (!nativeCore) {
+    throw new Error("Native module not available: " + (loadError?.message || "unknown error"));
+  }
+
+  const nativeOptions: NativeFinalizeReportOptions = {
+    homeDir: undefined,
+    localMessages: options.localMessages,
+    pricing: options.pricing,
+    includeCursor: options.includeCursor,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  const result = nativeCore.finalizeGraph(nativeOptions);
+  return fromNativeResult(result);
 }

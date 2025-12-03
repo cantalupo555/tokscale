@@ -61,7 +61,7 @@ impl ScanResult {
 }
 
 /// Scan a single directory for session files
-fn scan_directory(root: &str, pattern: &str) -> Vec<PathBuf> {
+pub fn scan_directory(root: &str, pattern: &str) -> Vec<PathBuf> {
     if !std::path::Path::new(root).exists() {
         return Vec::new();
     }
