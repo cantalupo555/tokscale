@@ -1,6 +1,7 @@
 //! Pricing calculation module
 //!
 //! Receives pricing data from TypeScript and calculates costs for messages.
+//! Optimized for high-throughput lookups with pre-computed indices.
 
 use std::collections::HashMap;
 
@@ -13,16 +14,30 @@ pub struct ModelPricing {
     pub cache_creation_input_token_cost: f64,
 }
 
+/// Pre-computed key entry for fast fuzzy matching
+#[derive(Debug, Clone)]
+struct IndexedKey {
+    original: String,
+    lowercase: String,
+}
+
 /// Pricing dataset containing all model pricing
+/// Optimized with pre-computed indices for fast lookups
 #[derive(Debug, Clone, Default)]
 pub struct PricingData {
     models: HashMap<String, ModelPricing>,
+    /// Pre-sorted keys with lowercase versions (computed once via finalize())
+    sorted_keys: Vec<IndexedKey>,
+    /// Cache of model_id -> resolved key for repeated lookups
+    resolution_cache: HashMap<String, Option<String>>,
 }
 
 impl PricingData {
     pub fn new() -> Self {
         Self {
             models: HashMap::new(),
+            sorted_keys: Vec::new(),
+            resolution_cache: HashMap::new(),
         }
     }
 
@@ -31,8 +46,29 @@ impl PricingData {
         self.models.insert(model_id, pricing);
     }
 
-    /// Get pricing for a model with fuzzy matching
+    /// Finalize the pricing data by pre-computing sorted keys
+    /// Call this after all models have been added
+    pub fn finalize(&mut self) {
+        let mut keys: Vec<IndexedKey> = self
+            .models
+            .keys()
+            .map(|k| IndexedKey {
+                original: k.clone(),
+                lowercase: k.to_lowercase(),
+            })
+            .collect();
+        keys.sort_by(|a, b| a.original.cmp(&b.original));
+        self.sorted_keys = keys;
+        self.resolution_cache.clear();
+    }
+
+    /// Get pricing for a model with fuzzy matching (uses pre-computed indices)
     pub fn get_pricing(&self, model_id: &str) -> Option<&ModelPricing> {
+        // Check resolution cache first
+        if let Some(cached) = self.resolution_cache.get(model_id) {
+            return cached.as_ref().and_then(|k| self.models.get(k));
+        }
+
         // Direct lookup
         if let Some(pricing) = self.models.get(model_id) {
             return Some(pricing);
@@ -48,13 +84,11 @@ impl PricingData {
         }
 
         // Normalize model name for Cursor-style names
-        // e.g., "claude-4-sonnet" → "sonnet-4", "4-opus" → "opus-4"
         let normalized = Self::normalize_cursor_model_name(model_id);
         if let Some(ref norm) = normalized {
             if let Some(pricing) = self.models.get(norm) {
                 return Some(pricing);
             }
-            // Try with prefixes on normalized name
             for prefix in prefixes {
                 let key = format!("{}{}", prefix, norm);
                 if let Some(pricing) = self.models.get(&key) {
@@ -63,42 +97,107 @@ impl PricingData {
             }
         }
 
-        // Fuzzy matching - check if model_id is contained in any key or vice versa
-        // Sort keys for deterministic results (HashMap iteration is random)
+        // Fuzzy matching using pre-computed sorted keys
         let lower_model = model_id.to_lowercase();
         let lower_normalized = normalized.as_ref().map(|s| s.to_lowercase());
-        
-        let mut sorted_keys: Vec<&String> = self.models.keys().collect();
-        sorted_keys.sort();
-        
+
         // First pass: prefer keys that contain the model name (more specific)
-        for key in &sorted_keys {
-            let lower_key = key.to_lowercase();
-            
-            // Check original model name
-            if lower_key.contains(&lower_model) {
-                return self.models.get(*key);
+        for indexed in &self.sorted_keys {
+            if indexed.lowercase.contains(&lower_model) {
+                return self.models.get(&indexed.original);
             }
-            
-            // Check normalized name
             if let Some(ref ln) = lower_normalized {
-                if lower_key.contains(ln) {
-                    return self.models.get(*key);
+                if indexed.lowercase.contains(ln) {
+                    return self.models.get(&indexed.original);
                 }
             }
         }
-        
+
         // Second pass: check if model name contains the key (less specific)
-        for key in &sorted_keys {
-            let lower_key = key.to_lowercase();
-            
-            if lower_model.contains(&lower_key) {
-                return self.models.get(*key);
+        for indexed in &self.sorted_keys {
+            if lower_model.contains(&indexed.lowercase) {
+                return self.models.get(&indexed.original);
             }
-            
             if let Some(ref ln) = lower_normalized {
-                if ln.contains(&lower_key) {
-                    return self.models.get(*key);
+                if ln.contains(&indexed.lowercase) {
+                    return self.models.get(&indexed.original);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Get pricing with caching (mutable version for building cache)
+    pub fn get_pricing_cached(&mut self, model_id: &str) -> Option<&ModelPricing> {
+        // Check cache first
+        if let Some(cached) = self.resolution_cache.get(model_id) {
+            return cached.as_ref().and_then(|k| self.models.get(k));
+        }
+
+        // Resolve the key
+        let resolved_key = self.resolve_model_key(model_id);
+        
+        // Cache the result
+        self.resolution_cache.insert(model_id.to_string(), resolved_key.clone());
+        
+        resolved_key.and_then(|k| self.models.get(&k))
+    }
+
+    /// Resolve model_id to the actual key in the pricing map
+    fn resolve_model_key(&self, model_id: &str) -> Option<String> {
+        // Direct lookup
+        if self.models.contains_key(model_id) {
+            return Some(model_id.to_string());
+        }
+
+        // Try with provider prefixes
+        let prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+        for prefix in prefixes {
+            let key = format!("{}{}", prefix, model_id);
+            if self.models.contains_key(&key) {
+                return Some(key);
+            }
+        }
+
+        // Normalize model name
+        let normalized = Self::normalize_cursor_model_name(model_id);
+        if let Some(ref norm) = normalized {
+            if self.models.contains_key(norm) {
+                return Some(norm.clone());
+            }
+            for prefix in prefixes {
+                let key = format!("{}{}", prefix, norm);
+                if self.models.contains_key(&key) {
+                    return Some(key);
+                }
+            }
+        }
+
+        // Fuzzy matching using pre-computed sorted keys
+        let lower_model = model_id.to_lowercase();
+        let lower_normalized = normalized.as_ref().map(|s| s.to_lowercase());
+
+        // First pass: keys that contain the model name
+        for indexed in &self.sorted_keys {
+            if indexed.lowercase.contains(&lower_model) {
+                return Some(indexed.original.clone());
+            }
+            if let Some(ref ln) = lower_normalized {
+                if indexed.lowercase.contains(ln) {
+                    return Some(indexed.original.clone());
+                }
+            }
+        }
+
+        // Second pass: model name contains the key
+        for indexed in &self.sorted_keys {
+            if lower_model.contains(&indexed.lowercase) {
+                return Some(indexed.original.clone());
+            }
+            if let Some(ref ln) = lower_normalized {
+                if ln.contains(&indexed.lowercase) {
+                    return Some(indexed.original.clone());
                 }
             }
         }
@@ -107,12 +206,10 @@ impl PricingData {
     }
 
     /// Normalize Cursor-style model names to standard format
-    /// e.g., "claude-4-sonnet" → "sonnet-4", "claude-4-opus-thinking" → "opus-4"
     fn normalize_cursor_model_name(model_id: &str) -> Option<String> {
         let lower = model_id.to_lowercase();
-        
-        // Map Cursor model patterns to standard names
-        // Claude models: claude-X-{model} or X-{model} → {model}-X
+
+        // Claude models
         if lower.contains("opus") {
             if lower.contains("4.5") || lower.contains("4-5") {
                 return Some("opus-4-5".to_string());
@@ -136,7 +233,7 @@ impl PricingData {
                 return Some("haiku-4-5".to_string());
             }
         }
-        
+
         // OpenAI models
         if lower == "o3" {
             return Some("o3".to_string());
@@ -147,7 +244,7 @@ impl PricingData {
         if lower.starts_with("gpt-4.1") || lower.contains("gpt-4.1") {
             return Some("gpt-4.1".to_string());
         }
-        
+
         // Gemini models
         if lower.contains("gemini-2.5-pro") {
             return Some("gemini-2.5-pro".to_string());
@@ -155,7 +252,7 @@ impl PricingData {
         if lower.contains("gemini-2.5-flash") {
             return Some("gemini-2.5-flash".to_string());
         }
-        
+
         None
     }
 
@@ -171,7 +268,7 @@ impl PricingData {
     ) -> f64 {
         let pricing = match self.get_pricing(model_id) {
             Some(p) => p,
-            None => return 0.0, // No pricing found
+            None => return 0.0,
         };
 
         let input_cost = input as f64 * pricing.input_cost_per_token;
@@ -199,18 +296,17 @@ mod tests {
                 cache_creation_input_token_cost: 3.75 / 1_000_000.0,
             },
         );
+        pricing.finalize();
 
         let cost = pricing.calculate_cost(
             "claude-3-5-sonnet-20241022",
-            1000, // input
-            500,  // output
-            2000, // cache_read
-            100,  // cache_write
-            0,    // reasoning
+            1000,
+            500,
+            2000,
+            100,
+            0,
         );
 
-        // Expected: (1000 * 3/1M) + (500 * 15/1M) + (2000 * 0.3/1M) + (100 * 3.75/1M)
-        // = 0.003 + 0.0075 + 0.0006 + 0.000375 = 0.011475
         assert!((cost - 0.011475).abs() < 0.0001);
     }
 
@@ -226,8 +322,29 @@ mod tests {
                 cache_creation_input_token_cost: 3.75 / 1_000_000.0,
             },
         );
+        pricing.finalize();
 
-        // Should find via prefix matching
         assert!(pricing.get_pricing("claude-3-5-sonnet-20241022").is_some());
+    }
+
+    #[test]
+    fn test_cached_lookup() {
+        let mut pricing = PricingData::new();
+        pricing.add_model(
+            "anthropic/claude-3-5-sonnet-20241022".to_string(),
+            ModelPricing {
+                input_cost_per_token: 3.0 / 1_000_000.0,
+                output_cost_per_token: 15.0 / 1_000_000.0,
+                cache_read_input_token_cost: 0.3 / 1_000_000.0,
+                cache_creation_input_token_cost: 3.75 / 1_000_000.0,
+            },
+        );
+        pricing.finalize();
+
+        // First lookup resolves and caches
+        assert!(pricing.get_pricing_cached("claude-3-5-sonnet-20241022").is_some());
+        
+        // Second lookup uses cache
+        assert!(pricing.get_pricing_cached("claude-3-5-sonnet-20241022").is_some());
     }
 }

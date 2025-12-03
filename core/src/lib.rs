@@ -417,6 +417,8 @@ fn build_pricing_data(entries: &[PricingEntry]) -> PricingData {
             },
         );
     }
+    // Pre-compute sorted keys for fast lookups
+    pricing_data.finalize();
     pricing_data
 }
 
