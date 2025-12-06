@@ -158,7 +158,7 @@ export async function submit(options: SubmitOptions = {}): Promise<void> {
     console.log(pc.gray(`    Total cost: ${formatCurrency(result.metrics?.totalCost || 0)}`));
     console.log(pc.gray(`    Active days: ${result.metrics?.activeDays}`));
     console.log();
-    console.log(pc.cyan(`  View your profile: ${baseUrl}/${credentials.username}`));
+    console.log(pc.cyan(`  View your profile: ${baseUrl}/u/${credentials.username}`));
     console.log();
 
     if (result.warnings && result.warnings.length > 0) {

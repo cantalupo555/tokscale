@@ -29,6 +29,7 @@ export const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   claude: "Claude Code",
   codex: "Codex CLI",
   gemini: "Gemini CLI",
+  cursor: "Cursor",
 };
 
 export const SOURCE_COLORS: Record<string, string> = {
@@ -36,6 +37,7 @@ export const SOURCE_COLORS: Record<string, string> = {
   claude: "#f97316",
   codex: "#3b82f6",
   gemini: "#8b5cf6",
+  cursor: "#000000",
 };
 
 // Derived values
