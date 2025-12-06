@@ -1,5 +1,5 @@
 {
-  "name": "@token-tracker/core",
+  "name": "@wakeru-ai/token-tracker-core",
   "version": "0.1.0",
   "description": "Native Rust core for token-tracker CLI - high-performance session parsing",
   "main": "index.js",
@@ -18,14 +18,19 @@
     ]
   },
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "devDependencies": {
     "@napi-rs/cli": "^3.4.1",
     "ava": "^6.1.0"
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build": "napi build --release",
+    "build:platform": "napi build --platform --release",
+    "build:debug": "napi build",
     "prepublishOnly": "napi prepublish -t npm",
     "test": "ava",
     "test:rust": "cargo test --features noop",

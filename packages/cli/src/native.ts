@@ -222,17 +222,9 @@ let nativeCore: NativeCore | null = null;
 let loadError: Error | null = null;
 
 try {
-  // Try to load from the core directory (development)
-  const corePath = new URL("../core/index.js", import.meta.url);
-  nativeCore = await import(corePath.href).then((m) => m.default || m);
+  nativeCore = await import("@wakeru-ai/token-tracker-core").then((m) => m.default || m);
 } catch (e) {
-  try {
-    // Try to load from node_modules (production)
-    // @ts-ignore - optional dependency
-    nativeCore = await import("@token-tracker/core").then((m) => m.default || m);
-  } catch (e2) {
-    loadError = e2 as Error;
-  }
+  loadError = e as Error;
 }
 
 // =============================================================================
