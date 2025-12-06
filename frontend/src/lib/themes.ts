@@ -18,10 +18,12 @@ export type ColorPaletteName =
   | "monochrome"
   | "YlGnBu";
 
+const GRAPH_EMPTY = "#1F1F20";
+
 export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   green: {
     name: "Green",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#9be9a8",
     grade2: "#40c463",
     grade3: "#30a14e",
@@ -29,7 +31,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   halloween: {
     name: "Halloween",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#FFEE4A",
     grade2: "#FFC501",
     grade3: "#FE9600",
@@ -37,7 +39,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   teal: {
     name: "Teal",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#7ee5e5",
     grade2: "#2dc5c5",
     grade3: "#0d9e9e",
@@ -45,7 +47,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   blue: {
     name: "Blue",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#79b8ff",
     grade2: "#388bfd",
     grade3: "#1f6feb",
@@ -53,7 +55,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   pink: {
     name: "Pink",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#f0b5d2",
     grade2: "#d961a0",
     grade3: "#bf4b8a",
@@ -61,7 +63,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   purple: {
     name: "Purple",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#cdb4ff",
     grade2: "#a371f7",
     grade3: "#8957e5",
@@ -69,7 +71,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   orange: {
     name: "Orange",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#ffd699",
     grade2: "#ffb347",
     grade3: "#ff8c00",
@@ -77,7 +79,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   monochrome: {
     name: "Monochrome",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#9e9e9e",
     grade2: "#757575",
     grade3: "#424242",
@@ -85,7 +87,7 @@ export const colorPalettes: Record<ColorPaletteName, GraphColorPalette> = {
   },
   YlGnBu: {
     name: "YlGnBu",
-    grade0: "var(--color-graph-empty)",
+    grade0: GRAPH_EMPTY,
     grade1: "#a1dab4",
     grade2: "#41b6c4",
     grade3: "#2c7fb8",
@@ -112,16 +114,20 @@ export type Theme = GraphColorPalette & { background: string; text: string; meta
 export const DEFAULT_THEME = DEFAULT_PALETTE;
 export const getThemeNames = getPaletteNames;
 
+const CANVAS_DEFAULT = "#141415";
+const FG_DEFAULT = "#FFFFFF";
+const FG_MUTED = "#696969";
+
 export const getTheme = (name: ThemeName): Theme => ({
   ...getPalette(name),
-  background: "var(--color-canvas-default)",
-  text: "var(--color-fg-default)",
-  meta: "var(--color-fg-muted)",
+  background: CANVAS_DEFAULT,
+  text: FG_DEFAULT,
+  meta: FG_MUTED,
 });
 
 export const themes = Object.fromEntries(
   Object.entries(colorPalettes).map(([key, palette]) => [
     key,
-    { ...palette, background: "var(--color-canvas-default)", text: "var(--color-fg-default)", meta: "var(--color-fg-muted)" },
+    { ...palette, background: CANVAS_DEFAULT, text: FG_DEFAULT, meta: FG_MUTED },
   ])
 ) as Record<ThemeName, Theme>;

@@ -33,11 +33,13 @@ export function Navigation() {
   const isActive = (path: string) => pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-200/80 dark:border-neutral-800/80 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-xl">
+    <header
+      className="sticky top-0 z-50 border-b backdrop-blur-xl"
+      style={{ borderColor: "#262627", backgroundColor: "rgba(20, 20, 21, 0.8)" }}
+    >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/25 dark:shadow-green-500/15 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20 group-hover:scale-105 transition-transform">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -53,44 +55,50 @@ export function Navigation() {
             </svg>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-lg font-bold tracking-tight text-neutral-900 dark:text-white">
+            <h1
+              className="text-lg font-bold tracking-tight"
+              style={{ color: "#FFFFFF" }}
+            >
               Token Tracker
             </h1>
           </div>
         </Link>
 
-        {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-1">
           <Link
             href="/"
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              isActive("/")
-                ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white"
-                : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
-            }`}
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            style={{
+              backgroundColor: isActive("/") ? "#262627" : "transparent",
+              color: isActive("/") ? "#FFFFFF" : "#696969",
+            }}
           >
             Leaderboard
           </Link>
           <Link
             href="/local"
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              isActive("/local")
-                ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-white"
-                : "text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
-            }`}
+            className="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+            style={{
+              backgroundColor: isActive("/local") ? "#262627" : "transparent",
+              color: isActive("/local") ? "#FFFFFF" : "#696969",
+            }}
           >
             Local Viewer
           </Link>
         </nav>
 
-        {/* User Menu */}
         <div className="flex items-center gap-3">
           {isLoading ? (
-            <div className="w-9 h-9 rounded-full bg-neutral-200 dark:bg-neutral-700 animate-pulse" />
+            <div
+              className="w-9 h-9 rounded-full animate-pulse"
+              style={{ backgroundColor: "#262627" }}
+            />
           ) : user ? (
             <ActionMenu>
               <ActionMenu.Anchor>
-                <button className="flex items-center gap-2 p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors">
+                <button
+                  className="flex items-center gap-2 p-1 rounded-full transition-colors hover:opacity-80"
+                >
                   <Avatar
                     src={user.avatarUrl || `https://github.com/${user.username}.png`}
                     alt={user.username}
@@ -101,11 +109,14 @@ export function Navigation() {
               <ActionMenu.Overlay width="medium">
                 <ActionList>
                   <ActionList.Group>
-                    <div className="px-3 py-2 border-b border-neutral-100 dark:border-neutral-800">
-                      <p className="text-sm font-medium">
+                    <div
+                      className="px-3 py-2 border-b"
+                      style={{ borderColor: "#262627" }}
+                    >
+                      <p className="text-sm font-medium" style={{ color: "#FFFFFF" }}>
                         {user.displayName || user.username}
                       </p>
-                      <p className="text-xs text-neutral-500">
+                      <p className="text-xs" style={{ color: "#696969" }}>
                         @{user.username}
                       </p>
                     </div>

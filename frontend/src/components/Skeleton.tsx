@@ -7,7 +7,8 @@ interface SkeletonProps {
 export function Skeleton({ className = "" }: SkeletonProps) {
   return (
     <div
-      className={`animate-pulse bg-neutral-200 dark:bg-neutral-700 rounded ${className}`}
+      className={`animate-pulse rounded ${className}`}
+      style={{ backgroundColor: "#262627" }}
     />
   );
 }
@@ -15,12 +16,12 @@ export function Skeleton({ className = "" }: SkeletonProps) {
 export function LeaderboardSkeleton() {
   return (
     <div className="space-y-4">
-      {/* Stats Grid Skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4"
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: "#141415", borderColor: "#262627" }}
           >
             <Skeleton className="h-4 w-20 mb-2" />
             <Skeleton className="h-8 w-24" />
@@ -28,10 +29,14 @@ export function LeaderboardSkeleton() {
         ))}
       </div>
 
-      {/* Table Skeleton */}
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-        {/* Header */}
-        <div className="bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 px-6 py-3">
+      <div
+        className="rounded-2xl border overflow-hidden"
+        style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+      >
+        <div
+          className="border-b px-6 py-3"
+          style={{ backgroundColor: "#1F1F20", borderColor: "#262627" }}
+        >
           <div className="flex gap-6">
             <Skeleton className="h-4 w-12" />
             <Skeleton className="h-4 w-24" />
@@ -39,11 +44,11 @@ export function LeaderboardSkeleton() {
             <Skeleton className="h-4 w-16" />
           </div>
         </div>
-        {/* Rows */}
         {[...Array(10)].map((_, i) => (
           <div
             key={i}
-            className="px-6 py-4 border-b border-neutral-100 dark:border-neutral-800 last:border-0"
+            className="px-6 py-4 border-b last:border-0"
+            style={{ borderColor: "#262627" }}
           >
             <div className="flex items-center gap-6">
               <Skeleton className="h-6 w-8" />
@@ -67,7 +72,6 @@ export function LeaderboardSkeleton() {
 export function ProfileSkeleton() {
   return (
     <div className="space-y-8">
-      {/* User Header Skeleton */}
       <div className="flex items-start gap-6 mb-8">
         <Skeleton className="w-24 h-24 rounded-2xl" />
         <div className="flex-1">
@@ -83,12 +87,12 @@ export function ProfileSkeleton() {
         </div>
       </div>
 
-      {/* Stats Grid Skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4"
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: "#141415", borderColor: "#262627" }}
           >
             <Skeleton className="h-4 w-20 mb-2" />
             <Skeleton className="h-8 w-24" />
@@ -96,8 +100,10 @@ export function ProfileSkeleton() {
         ))}
       </div>
 
-      {/* Token Breakdown Skeleton */}
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
+      <div
+        className="rounded-2xl border p-6"
+        style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+      >
         <Skeleton className="h-6 w-36 mb-4" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -109,8 +115,10 @@ export function ProfileSkeleton() {
         </div>
       </div>
 
-      {/* Graph Skeleton */}
-      <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6">
+      <div
+        className="rounded-2xl border p-6"
+        style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+      >
         <Skeleton className="h-6 w-24 mb-4" />
         <Skeleton className="h-40 w-full rounded-lg" />
       </div>
@@ -120,7 +128,10 @@ export function ProfileSkeleton() {
 
 export function StatCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-4">
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+    >
       <Skeleton className="h-4 w-20 mb-2" />
       <Skeleton className="h-8 w-24" />
     </div>
@@ -129,7 +140,10 @@ export function StatCardSkeleton() {
 
 export function TableRowSkeleton() {
   return (
-    <div className="px-6 py-4 border-b border-neutral-100 dark:border-neutral-800">
+    <div
+      className="px-6 py-4 border-b"
+      style={{ borderColor: "#262627" }}
+    >
       <div className="flex items-center gap-6">
         <Skeleton className="h-6 w-8" />
         <div className="flex items-center gap-3">

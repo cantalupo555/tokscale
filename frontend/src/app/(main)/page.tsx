@@ -70,58 +70,68 @@ export default function LeaderboardPage() {
   }, [period, page]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
       <Navigation />
 
       <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
-        {/* Hero Stats */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: "#FFFFFF" }}>
             Leaderboard
           </h1>
-          <p className="text-neutral-500 dark:text-neutral-400 mb-6">
+          <p className="mb-6" style={{ color: "#696969" }}>
             See who&apos;s using the most AI tokens
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            <div
+              className="rounded-xl border p-3 sm:p-4"
+              style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+            >
+              <p className="text-xs sm:text-sm" style={{ color: "#696969" }}>
                 Total Tokens
               </p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
+              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#FFFFFF" }}>
                 {data ? formatNumber(data.stats.totalTokens) : "-"}
               </p>
             </div>
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            <div
+              className="rounded-xl border p-3 sm:p-4"
+              style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+            >
+              <p className="text-xs sm:text-sm" style={{ color: "#696969" }}>
                 Total Cost
               </p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#4ADE80" }}>
                 {data ? formatCurrency(data.stats.totalCost) : "-"}
               </p>
             </div>
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            <div
+              className="rounded-xl border p-3 sm:p-4"
+              style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+            >
+              <p className="text-xs sm:text-sm" style={{ color: "#696969" }}>
                 Users
               </p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
+              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#FFFFFF" }}>
                 {data ? data.stats.uniqueUsers : "-"}
               </p>
             </div>
-            <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 sm:p-4">
-              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            <div
+              className="rounded-xl border p-3 sm:p-4"
+              style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+            >
+              <p className="text-xs sm:text-sm" style={{ color: "#696969" }}>
                 Submissions
               </p>
-              <p className="text-xl sm:text-2xl font-bold text-neutral-900 dark:text-white">
+              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#FFFFFF" }}>
                 {data ? data.stats.totalSubmissions : "-"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Period Filter */}
         <div className="mb-6">
-          <SegmentedControl 
+          <SegmentedControl
             aria-label="Period filter"
             onChange={(index) => {
               const periods: Period[] = ["all", "month", "week"];
@@ -141,147 +151,185 @@ export default function LeaderboardPage() {
           </SegmentedControl>
         </div>
 
-        {/* Leaderboard Table */}
         {isLoading ? (
           <LeaderboardSkeleton />
         ) : (
-        <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-          {!data || data.users.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-neutral-500 dark:text-neutral-400 mb-4">
-                No submissions yet. Be the first!
-              </p>
-              <p className="text-sm text-neutral-400 dark:text-neutral-500">
-                Run{" "}
-                <code className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded">
-                  token-tracker login && token-tracker submit
-                </code>
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[500px]">
-                  <thead className="bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800">
-                    <tr>
-                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Rank
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                        User
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Tokens
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-                        Cost
-                      </th>
-                      <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider hidden md:table-cell">
-                        Submissions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                    {data.users.map((user) => (
-                      <tr
-                        key={user.userId}
-                        className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
-                      >
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <span
-                            className={`text-base sm:text-lg font-bold ${
-                              user.rank === 1
-                                ? "text-yellow-500"
-                                : user.rank === 2
-                                ? "text-neutral-400"
-                                : user.rank === 3
-                                ? "text-amber-600"
-                                : "text-neutral-500 dark:text-neutral-400"
-                            }`}
-                          >
-                            #{user.rank}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                          <Link
-                            href={`/u/${user.username}`}
-                            className="flex items-center gap-2 sm:gap-3 group"
-                          >
-                            <Avatar
-                              src={user.avatarUrl || `https://github.com/${user.username}.png`}
-                              alt={user.username}
-                              size={40}
-                            />
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm sm:text-base text-neutral-900 dark:text-white group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors truncate max-w-[120px] sm:max-w-none">
-                                {user.displayName || user.username}
-                              </p>
-                              <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate max-w-[120px] sm:max-w-none">
-                                @{user.username}
-                              </p>
-                            </div>
-                          </Link>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
-                          <span className="font-medium text-sm sm:text-base text-neutral-900 dark:text-white">
-                            {formatNumber(user.totalTokens)}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
-                          <span className="font-medium text-sm sm:text-base text-green-600 dark:text-green-400">
-                            {formatCurrency(user.totalCost)}
-                          </span>
-                        </td>
-                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right hidden md:table-cell">
-                          <span className="text-neutral-500 dark:text-neutral-400">
-                            {user.submissionCount}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div
+            className="rounded-2xl border overflow-hidden"
+            style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+          >
+            {!data || data.users.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="mb-4" style={{ color: "#696969" }}>
+                  No submissions yet. Be the first!
+                </p>
+                <p className="text-sm" style={{ color: "#525252" }}>
+                  Run{" "}
+                  <code
+                    className="px-2 py-1 rounded"
+                    style={{ backgroundColor: "#262627" }}
+                  >
+                    token-tracker login && token-tracker submit
+                  </code>
+                </p>
               </div>
-
-              {/* Pagination */}
-              {data.pagination.totalPages > 1 && (
-                <div className="px-3 sm:px-6 py-3 sm:py-4 border-t border-neutral-200 dark:border-neutral-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 text-center sm:text-left">
-                    Showing {(data.pagination.page - 1) * data.pagination.limit + 1}-{Math.min(
-                      data.pagination.page * data.pagination.limit,
-                      data.pagination.totalUsers
-                    )}{" "}
-                    of {data.pagination.totalUsers}
-                  </p>
-                  <Pagination
-                    pageCount={data.pagination.totalPages}
-                    currentPage={data.pagination.page}
-                    onPageChange={(e, pageNum) => setPage(pageNum)}
-                    showPages={{ narrow: false, regular: true, wide: true }}
-                  />
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[500px]">
+                    <thead
+                      className="border-b"
+                      style={{ backgroundColor: "#1F1F20", borderColor: "#262627" }}
+                    >
+                      <tr>
+                        <th
+                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                          style={{ color: "#696969" }}
+                        >
+                          Rank
+                        </th>
+                        <th
+                          className="px-3 sm:px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                          style={{ color: "#696969" }}
+                        >
+                          User
+                        </th>
+                        <th
+                          className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                          style={{ color: "#696969" }}
+                        >
+                          Tokens
+                        </th>
+                        <th
+                          className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider"
+                          style={{ color: "#696969" }}
+                        >
+                          Cost
+                        </th>
+                        <th
+                          className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider hidden md:table-cell"
+                          style={{ color: "#696969" }}
+                        >
+                          Submissions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.users.map((user, index) => (
+                        <tr
+                          key={user.userId}
+                          className="transition-colors hover:opacity-80"
+                          style={{
+                            borderBottom: index < data.users.length - 1 ? "1px solid #262627" : "none",
+                          }}
+                        >
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span
+                              className="text-base sm:text-lg font-bold"
+                              style={{
+                                color:
+                                  user.rank === 1
+                                    ? "#EAB308"
+                                    : user.rank === 2
+                                    ? "#9CA3AF"
+                                    : user.rank === 3
+                                    ? "#D97706"
+                                    : "#696969",
+                              }}
+                            >
+                              #{user.rank}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <Link
+                              href={`/u/${user.username}`}
+                              className="flex items-center gap-2 sm:gap-3 group"
+                            >
+                              <Avatar
+                                src={user.avatarUrl || `https://github.com/${user.username}.png`}
+                                alt={user.username}
+                                size={40}
+                              />
+                              <div className="min-w-0">
+                                <p
+                                  className="font-medium text-sm sm:text-base truncate max-w-[120px] sm:max-w-none group-hover:opacity-80 transition-opacity"
+                                  style={{ color: "#FFFFFF" }}
+                                >
+                                  {user.displayName || user.username}
+                                </p>
+                                <p
+                                  className="text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none"
+                                  style={{ color: "#696969" }}
+                                >
+                                  @{user.username}
+                                </p>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
+                            <span
+                              className="font-medium text-sm sm:text-base"
+                              style={{ color: "#FFFFFF" }}
+                            >
+                              {formatNumber(user.totalTokens)}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right">
+                            <span
+                              className="font-medium text-sm sm:text-base"
+                              style={{ color: "#4ADE80" }}
+                            >
+                              {formatCurrency(user.totalCost)}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right hidden md:table-cell">
+                            <span style={{ color: "#696969" }}>{user.submissionCount}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </>
-          )}
-        </div>
+
+                {data.pagination.totalPages > 1 && (
+                  <div
+                    className="px-3 sm:px-6 py-3 sm:py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3"
+                    style={{ borderColor: "#262627" }}
+                  >
+                    <p className="text-xs sm:text-sm text-center sm:text-left" style={{ color: "#696969" }}>
+                      Showing {(data.pagination.page - 1) * data.pagination.limit + 1}-
+                      {Math.min(data.pagination.page * data.pagination.limit, data.pagination.totalUsers)} of{" "}
+                      {data.pagination.totalUsers}
+                    </p>
+                    <Pagination
+                      pageCount={data.pagination.totalPages}
+                      currentPage={data.pagination.page}
+                      onPageChange={(e, pageNum) => setPage(pageNum)}
+                      showPages={{ narrow: false, regular: true, wide: true }}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
 
-        {/* CLI Instructions */}
-        <div className="mt-8 p-6 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
+        <div
+          className="mt-8 p-6 rounded-2xl border"
+          style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+        >
+          <h2 className="text-lg font-semibold mb-3" style={{ color: "#FFFFFF" }}>
             Join the Leaderboard
           </h2>
-          <p className="text-neutral-600 dark:text-neutral-300 mb-4">
+          <p className="mb-4" style={{ color: "#9CA3AF" }}>
             Install Token Tracker CLI and submit your usage data:
           </p>
           <div className="space-y-2 font-mono text-sm">
-            <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300">
-              <span className="text-green-600 dark:text-green-400">$</span> npx
-              token-tracker login
+            <div className="p-3 rounded-lg" style={{ backgroundColor: "#1F1F20", color: "#9CA3AF" }}>
+              <span style={{ color: "#4ADE80" }}>$</span> npx token-tracker login
             </div>
-            <div className="p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg text-neutral-700 dark:text-neutral-300">
-              <span className="text-green-600 dark:text-green-400">$</span> npx
-              token-tracker submit
+            <div className="p-3 rounded-lg" style={{ backgroundColor: "#1F1F20", color: "#9CA3AF" }}>
+              <span style={{ color: "#4ADE80" }}>$</span> npx token-tracker submit
             </div>
           </div>
         </div>

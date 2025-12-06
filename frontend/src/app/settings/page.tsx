@@ -29,7 +29,6 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch user session
     fetch("/api/auth/session")
       .then((res) => res.json())
       .then((data) => {
@@ -44,7 +43,6 @@ export default function SettingsPage() {
         router.push("/");
       });
 
-    // Fetch API tokens
     fetch("/api/settings/tokens")
       .then((res) => res.json())
       .then((data) => {
@@ -73,10 +71,10 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
         <Navigation />
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-neutral-500 dark:text-neutral-400">Loading...</div>
+          <div style={{ color: "#696969" }}>Loading...</div>
         </main>
         <Footer />
       </div>
@@ -88,17 +86,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
       <Navigation />
 
       <main className="flex-1 max-w-3xl mx-auto px-6 py-10 w-full">
-        <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-8">
+        <h1 className="text-3xl font-bold mb-8" style={{ color: "#FFFFFF" }}>
           Settings
         </h1>
 
-        {/* Profile Section */}
-        <section className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <section
+          className="rounded-2xl border p-6 mb-6"
+          style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+        >
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "#FFFFFF" }}>
             Profile
           </h2>
           <div className="flex items-center gap-4">
@@ -109,14 +109,14 @@ export default function SettingsPage() {
               square
             />
             <div>
-              <p className="font-medium text-neutral-900 dark:text-white">
+              <p className="font-medium" style={{ color: "#FFFFFF" }}>
                 {user.displayName || user.username}
               </p>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="text-sm" style={{ color: "#696969" }}>
                 @{user.username}
               </p>
               {user.email && (
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                <p className="text-sm" style={{ color: "#696969" }}>
                   {user.email}
                 </p>
               )}
@@ -127,26 +127,34 @@ export default function SettingsPage() {
           </Flash>
         </section>
 
-        {/* API Tokens Section */}
-        <section className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">
+        <section
+          className="rounded-2xl border p-6 mb-6"
+          style={{ backgroundColor: "#141415", borderColor: "#262627" }}
+        >
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "#FFFFFF" }}>
             API Tokens
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+          <p className="text-sm mb-4" style={{ color: "#696969" }}>
             Tokens are created when you run{" "}
-            <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">
+            <code
+              className="px-1 py-0.5 rounded text-xs"
+              style={{ backgroundColor: "#262627" }}
+            >
               token-tracker login
             </code>{" "}
             from the CLI.
           </p>
 
           {tokens.length === 0 ? (
-            <div className="py-8 text-center text-neutral-500 dark:text-neutral-400">
+            <div className="py-8 text-center" style={{ color: "#696969" }}>
               <KeyIcon size={32} className="mx-auto mb-3 opacity-50" />
               <p>No API tokens yet.</p>
               <p className="text-sm mt-2">
                 Run{" "}
-                <code className="px-1 py-0.5 bg-neutral-100 dark:bg-neutral-800 rounded text-xs">
+                <code
+                  className="px-1 py-0.5 rounded text-xs"
+                  style={{ backgroundColor: "#262627" }}
+                >
                   token-tracker login
                 </code>{" "}
                 to create one.
@@ -157,15 +165,16 @@ export default function SettingsPage() {
               {tokens.map((token) => (
                 <div
                   key={token.id}
-                  className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800 rounded-xl"
+                  className="flex items-center justify-between p-4 rounded-xl"
+                  style={{ backgroundColor: "#1F1F20" }}
                 >
                   <div className="flex items-center gap-3">
-                    <KeyIcon size={20} className="text-neutral-400" />
+                    <KeyIcon size={20} className="text-neutral-500" />
                     <div>
-                      <p className="font-medium text-neutral-900 dark:text-white">
+                      <p className="font-medium" style={{ color: "#FFFFFF" }}>
                         {token.name}
                       </p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      <p className="text-sm" style={{ color: "#696969" }}>
                         Created {new Date(token.createdAt).toLocaleDateString()}
                         {token.lastUsedAt && (
                           <> - Last used {new Date(token.lastUsedAt).toLocaleDateString()}</>
@@ -186,12 +195,14 @@ export default function SettingsPage() {
           )}
         </section>
 
-        {/* Danger Zone */}
-        <section className="bg-white dark:bg-neutral-900 rounded-2xl border border-red-200 dark:border-red-900/50 p-6">
-          <h2 className="text-lg font-semibold text-red-600 dark:text-red-400 mb-4">
+        <section
+          className="rounded-2xl border p-6"
+          style={{ backgroundColor: "#141415", borderColor: "#7F1D1D" }}
+        >
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "#EF4444" }}>
             Danger Zone
           </h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+          <p className="text-sm mb-4" style={{ color: "#696969" }}>
             Deleting your account will remove all your submissions and cannot be undone.
           </p>
           <Button
@@ -203,7 +214,6 @@ export default function SettingsPage() {
                   "Are you sure you want to delete your account? This action cannot be undone."
                 )
               ) {
-                // TODO: Implement account deletion
                 alert("Account deletion is not yet implemented.");
               }
             }}

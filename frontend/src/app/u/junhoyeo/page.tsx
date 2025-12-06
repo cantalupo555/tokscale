@@ -7,7 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import {
   ProfileHeader,
-  ProfileStats,
+  ProfileTabBar,
   TokenBreakdown,
   ProfileModels,
   ProfileActivity,
@@ -15,6 +15,7 @@ import {
   ProfileCTA,
   type ProfileUser,
   type ProfileStatsData,
+  type ProfileTab,
 } from "@/components/profile";
 import type { TokenContributionData } from "@/lib/types";
 
@@ -28,6 +29,7 @@ const MOCK_USER: ProfileUser = {
 export default function JunhoyeoMockupPage() {
   const [data, setData] = useState<TokenContributionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("activity");
 
   useEffect(() => {
     fetch("/junhoyeo-data.json")
@@ -70,9 +72,9 @@ export default function JunhoyeoMockupPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
         <Navigation />
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
+        <main className="flex-1 max-w-[800px] mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
           <ProfileSkeleton />
         </main>
         <Footer />
@@ -82,14 +84,14 @@ export default function JunhoyeoMockupPage() {
 
   if (!data || !stats) {
     return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
         <Navigation />
-        <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+        <main className="flex-1 max-w-[800px] mx-auto px-6 py-10 w-full">
           <div className="text-center py-20">
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               Failed to load data
             </h1>
-            <p className="text-neutral-500 dark:text-neutral-400 mb-6">
+            <p className="mb-6" style={{ color: "#696969" }}>
               Make sure junhoyeo-data.json exists in the public folder.
             </p>
             <Link
@@ -106,27 +108,27 @@ export default function JunhoyeoMockupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
       <Navigation />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
-        <MockupBadge />
+      <main className="flex-1 max-w-[800px] mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
+        <div className="flex flex-col gap-8">
+          <MockupBadge />
 
-        <ProfileHeader user={MOCK_USER} sources={data.summary.sources} />
+          <ProfileHeader
+            user={MOCK_USER}
+            stats={stats}
+            lastUpdated={data.meta.dateRange.end}
+          />
 
-        <ProfileStats
-          stats={stats}
-          dateRange={data.meta.dateRange}
-          showHeroCard
-        />
+          <ProfileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <TokenBreakdown stats={stats} />
+          {activeTab === "activity" && <ProfileActivity data={data} />}
+          {activeTab === "breakdown" && <TokenBreakdown stats={stats} />}
+          {activeTab === "models" && <ProfileModels models={data.summary.models} />}
 
-        <ProfileModels models={data.summary.models} />
-
-        <ProfileActivity data={data} />
-
-        <ProfileCTA />
+          <ProfileCTA />
+        </div>
       </main>
 
       <Footer />

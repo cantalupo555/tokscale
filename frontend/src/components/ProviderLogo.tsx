@@ -8,7 +8,7 @@ interface ProviderLogoProps {
 
 export function ProviderLogo({ providerId, height = 12, className = "" }: ProviderLogoProps) {
   const normalizedId = providerId.toLowerCase();
-  const monoClass = "text-[#1f1f1e] dark:text-white";
+  const monoClass = "text-white";
 
   switch (normalizedId) {
     case "anthropic":

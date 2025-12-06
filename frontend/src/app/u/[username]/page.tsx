@@ -3,19 +3,19 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@primer/react";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { ProfileSkeleton } from "@/components/Skeleton";
 import {
   ProfileHeader,
-  ProfileStats,
+  ProfileTabBar,
   TokenBreakdown,
   ProfileModels,
   ProfileActivity,
   ProfileEmptyActivity,
   type ProfileUser,
   type ProfileStatsData,
+  type ProfileTab,
 } from "@/components/profile";
 import type { TokenContributionData, DailyContribution, SourceType } from "@/lib/types";
 
@@ -53,6 +53,7 @@ export default function ProfilePage() {
   const [data, setData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("activity");
 
   useEffect(() => {
     fetch(`/api/users/${username}`)
@@ -156,9 +157,9 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
         <Navigation />
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
+        <main className="flex-1 max-w-[800px] mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
           <ProfileSkeleton />
         </main>
         <Footer />
@@ -168,19 +169,22 @@ export default function ProfilePage() {
 
   if (error || !data || !user || !stats) {
     return (
-      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
         <Navigation />
-        <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+        <main className="flex-1 max-w-[800px] mx-auto px-6 py-10 w-full">
           <div className="text-center py-20">
-            <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
+            <h1 className="text-2xl font-bold text-white mb-2">
               User Not Found
             </h1>
-            <p className="text-neutral-500 dark:text-neutral-400 mb-6">
+            <p className="mb-6" style={{ color: "#696969" }}>
               The user @{username} doesn&apos;t exist or hasn&apos;t submitted any data yet.
             </p>
-            <Button as={Link} href="/" variant="primary">
+            <Link
+              href="/"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors"
+            >
               Back to Leaderboard
-            </Button>
+            </Link>
           </div>
         </main>
         <Footer />
@@ -189,23 +193,25 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#141415" }}>
       <Navigation />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
-        <ProfileHeader user={user} sources={data.sources} />
+      <main className="flex-1 max-w-[800px] mx-auto px-4 sm:px-6 py-6 sm:py-10 w-full">
+        <div className="flex flex-col gap-8">
+          <ProfileHeader
+            user={user}
+            stats={stats}
+            lastUpdated={data.dateRange.end || undefined}
+          />
 
-        <ProfileStats stats={stats} />
+          <ProfileTabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <TokenBreakdown stats={stats} />
-
-        <ProfileModels models={data.models} />
-
-        {graphData ? (
-          <ProfileActivity data={graphData} />
-        ) : (
-          <ProfileEmptyActivity />
-        )}
+          {activeTab === "activity" && (
+            graphData ? <ProfileActivity data={graphData} /> : <ProfileEmptyActivity />
+          )}
+          {activeTab === "breakdown" && <TokenBreakdown stats={stats} />}
+          {activeTab === "models" && <ProfileModels models={data.models} />}
+        </div>
       </main>
 
       <Footer />

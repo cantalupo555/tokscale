@@ -1,8 +1,11 @@
 export function Footer() {
   return (
-    <footer className="border-t border-neutral-200/80 dark:border-neutral-800/80 mt-auto bg-white/50 dark:bg-neutral-900/50">
+    <footer
+      className="border-t mt-auto"
+      style={{ borderColor: "#262627", backgroundColor: "rgba(20, 20, 21, 0.5)" }}
+    >
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="text-center text-sm" style={{ color: "#696969" }}>
           Token Tracker - Visualize and share your AI token usage
         </p>
       </div>

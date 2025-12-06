@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type { TokenContributionData, DailyContribution, ViewMode, SourceType, TooltipPosition } from "@/lib/types";
 import { getPalette } from "@/lib/themes";
 import { useSettings } from "@/lib/useSettings";
@@ -25,6 +25,7 @@ export function GraphContainer({ data }: GraphContainerProps) {
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const [selectedDay, setSelectedDay] = useState<DailyContribution | null>(null);
   const [sourceFilter, setSourceFilter] = useState<SourceType[]>([]);
+  const initializedRef = useRef(false);
 
   const palette = useMemo(() => getPalette(paletteName), [paletteName]);
   const availableYears = useMemo(() => data.years.map((y) => y.year), [data.years]);
@@ -59,6 +60,17 @@ export function GraphContainer({ data }: GraphContainerProps) {
 
   const totalContributions = useMemo(() => yearContributions.reduce((sum, c) => sum + c.totals.messages, 0), [yearContributions]);
 
+  useEffect(() => {
+    if (!initializedRef.current && yearContributions.length > 0) {
+      const activeDaysWithCost = yearContributions.filter((c) => c.totals.cost > 0);
+      if (activeDaysWithCost.length > 0) {
+        const latestDay = activeDaysWithCost[activeDaysWithCost.length - 1];
+        setSelectedDay(latestDay);
+        initializedRef.current = true;
+      }
+    }
+  }, [yearContributions]);
+
   const handleDayHover = useCallback((day: DailyContribution | null, position: TooltipPosition | null) => {
     setHoveredDay(day);
     setTooltipPosition(position);
@@ -72,7 +84,7 @@ export function GraphContainer({ data }: GraphContainerProps) {
     <div className="space-y-6">
       <div
         className="rounded-2xl border py-4 overflow-hidden shadow-sm transition-shadow hover:shadow-md"
-        style={{ backgroundColor: "var(--color-canvas-default)", borderColor: "var(--color-border-default)" }}
+        style={{ backgroundColor: "#141415", borderColor: "#262627" }}
       >
         <div className="px-5">
           <GraphControls

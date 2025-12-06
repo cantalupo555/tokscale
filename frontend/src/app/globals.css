@@ -1,201 +1,72 @@
 @import "tailwindcss";
 
-/**
- * Tailwind v4: Configure dark mode to use class strategy
- * This makes dark: variants work when .dark class is on html element
- */
-@variant dark (&:where(.dark, .dark *));
+:root {
+  --color-bg-darkest: #111113;
+  --color-bg-default: #141415;
+  --color-bg-elevated: #1F1F20;
+  --color-bg-button: #212124;
+  --color-bg-subtle: #262627;
+  --color-bg-active: #2C2C2F;
 
-/**
- * GitHub Primer Design System Colors
- * https://primer.style/product/foundations/color
- *
- * Theme modes:
- * - .light class: Force light mode
- * - .dark class: Force dark mode
- * - No class: Follow system preference via @media query
- *
- * Graph cell colors are controlled by color palette selection
- */
+  --color-text-primary: #FFFFFF;
+  --color-text-muted: #696969;
 
-/* ==========================================================================
-   Light Theme Variables (Default)
-   ========================================================================== */
-:root,
-:root.light {
-  /* Canvas (backgrounds) */
-  --color-canvas-default: #ffffff;
-  --color-canvas-subtle: #f6f8fa;
-  --color-canvas-inset: #f6f8fa;
+  --color-accent-blue: #85CAFF;
+  --color-accent-link: #169AFF;
 
-  /* Foreground (text) */
-  --color-fg-default: #1f2328;
-  --color-fg-muted: #656d76;
-  --color-fg-subtle: #6e7781;
+  --color-graph-empty: #1F1F20;
+  --color-graph-canvas: #141415;
 
-  /* Border */
-  --color-border-default: #d0d7de;
-  --color-border-muted: #d8dee4;
-  --color-border-subtle: rgba(31, 35, 40, 0.15);
-
-  /* Accent (green for highlights) */
-  --color-accent-fg: #1a7f37;
-  --color-accent-emphasis: #1f883d;
-
-  /* Graph-specific */
-  --color-graph-empty: #ebedf0;
-  --color-graph-canvas: #ffffff;
-
-  /* Card/Panel */
-  --color-card-bg: #ffffff;
-  --color-card-border: #d0d7de;
-
-  /* Button */
-  --color-btn-bg: #f6f8fa;
-  --color-btn-border: rgba(31, 35, 40, 0.15);
-  --color-btn-hover-bg: #f3f4f6;
-  --color-btn-active-bg: #ebecf0;
-  --color-btn-selected-bg: #ffffff;
-
-  /* Badge/Tag */
-  --color-badge-bg: #ddf4ff;
-  --color-badge-text: #0969da;
-
-  /* Legacy aliases */
-  --background: var(--color-canvas-default);
-  --foreground: var(--color-fg-default);
+  --color-canvas-default: #141415;
+  --color-canvas-subtle: #1F1F20;
+  --color-canvas-inset: #111113;
+  --color-fg-default: #FFFFFF;
+  --color-fg-muted: #696969;
+  --color-fg-subtle: #696969;
+  --color-border-default: #262627;
+  --color-border-muted: #262627;
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-accent-fg: #85CAFF;
+  --color-accent-emphasis: #169AFF;
+  --color-card-bg: #1F1F20;
+  --color-card-border: #262627;
+  --color-btn-bg: #212124;
+  --color-btn-border: #262627;
+  --color-btn-hover-bg: #2C2C2F;
+  --color-btn-active-bg: #2C2C2F;
+  --color-btn-selected-bg: #111113;
+  --color-badge-bg: rgba(133, 202, 255, 0.15);
+  --color-badge-text: #85CAFF;
+  --background: #141415;
+  --foreground: #FFFFFF;
 }
 
-/* ==========================================================================
-   Dark Theme Variables
-   ========================================================================== */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light):not(.dark) {
-    /* Canvas (backgrounds) - GitHub Dark */
-    --color-canvas-default: #0d1117;
-    --color-canvas-subtle: #161b22;
-    --color-canvas-inset: #010409;
-
-    /* Foreground (text) */
-    --color-fg-default: #e6edf3;
-    --color-fg-muted: #7d8590;
-    --color-fg-subtle: #6e7681;
-
-    /* Border */
-    --color-border-default: #30363d;
-    --color-border-muted: #21262d;
-    --color-border-subtle: rgba(240, 246, 252, 0.1);
-
-    /* Accent */
-    --color-accent-fg: #3fb950;
-    --color-accent-emphasis: #238636;
-
-    /* Graph-specific */
-    --color-graph-empty: #161b22;
-    --color-graph-canvas: #0d1117;
-
-    /* Card/Panel */
-    --color-card-bg: #161b22;
-    --color-card-border: #30363d;
-
-    /* Button */
-    --color-btn-bg: #21262d;
-    --color-btn-border: rgba(240, 246, 252, 0.1);
-    --color-btn-hover-bg: #30363d;
-    --color-btn-active-bg: #282e33;
-    --color-btn-selected-bg: #0d1117;
-
-    /* Badge/Tag */
-    --color-badge-bg: rgba(56, 139, 253, 0.15);
-    --color-badge-text: #58a6ff;
-
-    /* Legacy aliases */
-    --background: var(--color-canvas-default);
-    --foreground: var(--color-fg-default);
-  }
-}
-
-/* Dark mode with explicit .dark class (must override media query) */
-:root.dark {
-  /* Canvas (backgrounds) - GitHub Dark */
-  --color-canvas-default: #0d1117;
-  --color-canvas-subtle: #161b22;
-  --color-canvas-inset: #010409;
-
-  /* Foreground (text) */
-  --color-fg-default: #e6edf3;
-  --color-fg-muted: #7d8590;
-  --color-fg-subtle: #6e7681;
-
-  /* Border */
-  --color-border-default: #30363d;
-  --color-border-muted: #21262d;
-  --color-border-subtle: rgba(240, 246, 252, 0.1);
-
-  /* Accent */
-  --color-accent-fg: #3fb950;
-  --color-accent-emphasis: #238636;
-
-  /* Graph-specific */
-  --color-graph-empty: #161b22;
-  --color-graph-canvas: #0d1117;
-
-  /* Card/Panel */
-  --color-card-bg: #161b22;
-  --color-card-border: #30363d;
-
-  /* Button */
-  --color-btn-bg: #21262d;
-  --color-btn-border: rgba(240, 246, 252, 0.1);
-  --color-btn-hover-bg: #30363d;
-  --color-btn-active-bg: #282e33;
-  --color-btn-selected-bg: #0d1117;
-
-  /* Badge/Tag */
-  --color-badge-bg: rgba(56, 139, 253, 0.15);
-  --color-badge-text: #58a6ff;
-
-  /* Legacy aliases */
-  --background: var(--color-canvas-default);
-  --foreground: var(--color-fg-default);
-}
-
-/* ==========================================================================
-   Tailwind Theme Integration
-   ========================================================================== */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-figtree), var(--font-inter);
   --font-mono: var(--font-mono);
 }
 
-/* ==========================================================================
-   Base Styles
-   ========================================================================== */
 body {
-  background: var(--color-canvas-default);
-  color: var(--color-fg-default);
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", 
+  background: #141415;
+  color: #FFFFFF;
+  font-family: var(--font-figtree), var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", 
     "Noto Sans", Helvetica, Arial, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Modern mono font for code elements */
 code, pre, .font-mono {
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", 
     Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-/* ==========================================================================
-   Utility Classes
-   ========================================================================== */
-.bg-canvas { background-color: var(--color-canvas-default); }
-.bg-canvas-subtle { background-color: var(--color-canvas-subtle); }
-.bg-card { background-color: var(--color-card-bg); }
-.text-fg { color: var(--color-fg-default); }
-.text-fg-muted { color: var(--color-fg-muted); }
-.border-default { border-color: var(--color-border-default); }
-.border-subtle { border-color: var(--color-border-subtle); }
+.bg-canvas { background-color: #141415; }
+.bg-canvas-subtle { background-color: #1F1F20; }
+.bg-card { background-color: #1F1F20; }
+.text-fg { color: #FFFFFF; }
+.text-fg-muted { color: #696969; }
+.border-default { border-color: #262627; }
+.border-subtle { border-color: rgba(255, 255, 255, 0.1); }
