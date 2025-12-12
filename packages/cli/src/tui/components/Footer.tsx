@@ -1,72 +1,116 @@
-import { Box, Text } from "ink";
-import type { SourceType, SortType, TabType } from "../App.js";
+import { Show } from "solid-js";
+import type { SourceType, SortType, TabType } from "../types/index.js";
+import type { ColorPaletteName } from "../config/themes.js";
+import type { TotalBreakdown } from "../hooks/useData.js";
+import { getPalette } from "../config/themes.js";
+import { formatTokens } from "../utils/format.js";
 
 interface FooterProps {
   enabledSources: Set<SourceType>;
   sortBy: SortType;
-  totalCost: number;
+  totals?: TotalBreakdown;
   modelCount: number;
   activeTab: TabType;
   scrollStart?: number;
   scrollEnd?: number;
   totalItems?: number;
+  colorPalette: ColorPaletteName;
+  onSourceToggle?: (source: SourceType) => void;
+  onSortChange?: (sort: SortType) => void;
+  onPaletteChange?: () => void;
+  onRefresh?: () => void;
 }
 
-export function Footer({ 
-  enabledSources, 
-  sortBy, 
-  totalCost, 
-  modelCount,
-  activeTab,
-  scrollStart,
-  scrollEnd,
-  totalItems,
-}: FooterProps) {
-  const formatCost = (cost: number) => {
-    if (cost >= 1000) return `$${(cost / 1000).toFixed(1)}K`;
-    return `$${cost.toFixed(2)}`;
-  };
+export function Footer(props: FooterProps) {
+  const palette = () => getPalette(props.colorPalette);
+  const showScrollInfo = () => 
+    props.activeTab === "overview" && 
+    props.totalItems && 
+    props.scrollStart !== undefined && 
+    props.scrollEnd !== undefined;
 
-  const showScrollInfo = activeTab === "overview" && totalItems && scrollStart !== undefined && scrollEnd !== undefined;
+  const totals = () => props.totals || { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0, cost: 0 };
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Box justifyContent="space-between">
-        <Box gap={1}>
-          <SourceBadge name="1:OC" enabled={enabledSources.has("opencode")} />
-          <SourceBadge name="2:CC" enabled={enabledSources.has("claude")} />
-          <SourceBadge name="3:CX" enabled={enabledSources.has("codex")} />
-          <SourceBadge name="4:CR" enabled={enabledSources.has("cursor")} />
-          <SourceBadge name="5:GM" enabled={enabledSources.has("gemini")} />
-          <Text dimColor>|</Text>
-          <Text dimColor>Sort:</Text>
-          <Text color="white">{sortBy === "cost" ? "Cost" : sortBy === "name" ? "Name" : "Tokens"}</Text>
-          {showScrollInfo && (
-            <>
-              <Text dimColor>|</Text>
-              <Text dimColor>↓ {scrollStart + 1}-{scrollEnd} of {totalItems} models</Text>
-            </>
-          )}
-        </Box>
-        <Box gap={1}>
-          <Text dimColor>Total:</Text>
-          <Text color="green" bold>{formatCost(totalCost)}</Text>
-          <Text dimColor>({modelCount})</Text>
-        </Box>
-      </Box>
-      <Box>
-        <Text dimColor>
-          ↑↓ scroll • tab/d view • c/n/t sort • 1-5 filter • r refresh • q quit
-        </Text>
-      </Box>
-    </Box>
+    <box flexDirection="column" paddingX={1}>
+      <box flexDirection="row" justifyContent="space-between">
+        <box flexDirection="row" gap={1}>
+          <SourceBadge name="1:OC" source="opencode" enabled={props.enabledSources.has("opencode")} onToggle={props.onSourceToggle} />
+          <SourceBadge name="2:CC" source="claude" enabled={props.enabledSources.has("claude")} onToggle={props.onSourceToggle} />
+          <SourceBadge name="3:CX" source="codex" enabled={props.enabledSources.has("codex")} onToggle={props.onSourceToggle} />
+          <SourceBadge name="4:CR" source="cursor" enabled={props.enabledSources.has("cursor")} onToggle={props.onSourceToggle} />
+          <SourceBadge name="5:GM" source="gemini" enabled={props.enabledSources.has("gemini")} onToggle={props.onSourceToggle} />
+          <text dim>|</text>
+          <SortButton label="Cost" sortType="cost" active={props.sortBy === "cost"} onClick={props.onSortChange} />
+          <SortButton label="Name" sortType="name" active={props.sortBy === "name"} onClick={props.onSortChange} />
+          <SortButton label="Tokens" sortType="tokens" active={props.sortBy === "tokens"} onClick={props.onSortChange} />
+          <Show when={showScrollInfo()}>
+            <text dim>|</text>
+            <text dim>{`↓ ${props.scrollStart! + 1}-${props.scrollEnd} of ${props.totalItems}`}</text>
+          </Show>
+        </box>
+        <box flexDirection="row" gap={1}>
+          <text dim>Input:</text>
+          <text fg="cyan">{formatTokens(totals().input)}</text>
+          <text dim>Output:</text>
+          <text fg="cyan">{formatTokens(totals().output)}</text>
+          <text dim>Cache Read:</text>
+          <text fg="cyan">{formatTokens(totals().cacheRead)}</text>
+          <text dim>Cache Write:</text>
+          <text fg="cyan">{formatTokens(totals().cacheWrite)}</text>
+          <text dim>|</text>
+          <text fg="green" bold>{`$${totals().cost.toFixed(2)}`}</text>
+          <text dim>({props.modelCount} models)</text>
+        </box>
+      </box>
+      <box flexDirection="row" gap={1}>
+        <text dim>↑↓ scroll • ←→/tab view •</text>
+        <box onMouseDown={props.onPaletteChange}>
+          <text fg="magenta">{`[p:${palette().name}]`}</text>
+        </box>
+        <box onMouseDown={props.onRefresh}>
+          <text fg="yellow">[r:refresh]</text>
+        </box>
+        <text dim>• q quit</text>
+      </box>
+    </box>
   );
 }
 
-function SourceBadge({ name, enabled }: { name: string; enabled: boolean }) {
+interface SourceBadgeProps {
+  name: string;
+  source: SourceType;
+  enabled: boolean;
+  onToggle?: (source: SourceType) => void;
+}
+
+function SourceBadge(props: SourceBadgeProps) {
+  const handleClick = () => props.onToggle?.(props.source);
+
   return (
-    <Text color={enabled ? "green" : "gray"}>
-      [{enabled ? "●" : "○"}{name}]
-    </Text>
+    <box onMouseDown={handleClick}>
+      <text fg={props.enabled ? "green" : "gray"}>
+        {`[${props.enabled ? "●" : "○"}${props.name}]`}
+      </text>
+    </box>
+  );
+}
+
+interface SortButtonProps {
+  label: string;
+  sortType: SortType;
+  active: boolean;
+  onClick?: (sort: SortType) => void;
+}
+
+function SortButton(props: SortButtonProps) {
+  const handleClick = () => props.onClick?.(props.sortType);
+
+  return (
+    <box onMouseDown={handleClick}>
+      <text fg={props.active ? "white" : "gray"} bold={props.active}>
+        {props.label}
+      </text>
+    </box>
   );
 }

@@ -1,5 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import type { SourceType } from "../App.js";
+import { createSignal, createEffect, on, type Accessor } from "solid-js";
+import type {
+  SourceType,
+  SortType,
+  ModelEntry,
+  DailyEntry,
+  ContributionDay,
+  Stats,
+  ModelWithPercentage,
+  GridCell,
+  TotalBreakdown,
+  TUIData,
+  ChartDataPoint,
+} from "../types/index.js";
 import {
   isNativeAvailable,
   parseLocalSourcesNative,
@@ -10,69 +22,53 @@ import {
 import { PricingFetcher } from "../../pricing.js";
 import { syncCursorCache, loadCursorCredentials } from "../../cursor.js";
 import { getModelColor } from "../utils/colors.js";
-import type { ChartDataPoint } from "../components/BarChart.js";
 
-export type { SortType } from "../App.js";
+export type {
+  SortType,
+  ModelEntry,
+  DailyEntry,
+  ContributionDay,
+  Stats,
+  ModelWithPercentage,
+  GridCell,
+  TotalBreakdown,
+  TUIData,
+};
 
-export interface ModelEntry {
-  source: string;
-  model: string;
-  input: number;
-  output: number;
-  cacheWrite: number;
-  cacheRead: number;
-  total: number;
-  cost: number;
+export interface DateFilters {
+  since?: string;
+  until?: string;
+  year?: string;
 }
 
-export interface DailyEntry {
-  date: string;
-  input: number;
-  output: number;
-  cache: number;
-  total: number;
-  cost: number;
+function buildContributionGrid(contributions: ContributionDay[]): GridCell[][] {
+  const grid: GridCell[][] = Array.from({ length: 7 }, () => []);
+
+  const today = new Date();
+  const startYear = today.getFullYear();
+  const startMonth = today.getMonth();
+  const startDay = today.getDate() - 364;
+  const startDate = new Date(startYear, startMonth, startDay);
+
+  const contributionMap = new Map(contributions.map(c => [c.date, c.level]));
+
+  const currentDate = new Date(startDate);
+  while (currentDate <= today) {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const day = String(currentDate.getDate()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}`;
+    const dayOfWeek = currentDate.getDay();
+    const level = contributionMap.get(dateStr) || 0;
+
+    grid[dayOfWeek].push({ date: dateStr, level });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return grid;
 }
 
-export interface ContributionDay {
-  date: string;
-  cost: number;
-  level: number;
-}
-
-export interface Stats {
-  favoriteModel: string;
-  totalTokens: number;
-  sessions: number;
-  longestSession: string;
-  currentStreak: number;
-  longestStreak: number;
-  activeDays: number;
-  totalDays: number;
-  peakHour: string;
-}
-
-export interface ModelWithPercentage {
-  modelId: string;
-  percentage: number;
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-  cost: number;
-}
-
-export interface TUIData {
-  modelEntries: ModelEntry[];
-  dailyEntries: DailyEntry[];
-  contributions: ContributionDay[];
-  stats: Stats;
-  totalCost: number;
-  modelCount: number;
-  chartData: ChartDataPoint[];
-  topModels: ModelWithPercentage[];
-}
-
-async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
+async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilters): Promise<TUIData> {
   if (!isNativeAvailable()) {
     throw new Error("Native module not available");
   }
@@ -80,6 +76,7 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
   const sources = Array.from(enabledSources);
   const localSources = sources.filter(s => s !== "cursor");
   const includeCursor = sources.includes("cursor");
+  const { since, until, year } = dateFilters ?? {};
 
   const pricingFetcher = new PricingFetcher();
   
@@ -87,7 +84,7 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
     pricingFetcher.fetchPricing(),
     includeCursor && loadCursorCredentials() ? syncCursorCache() : Promise.resolve({ synced: false, rows: 0 }),
     localSources.length > 0
-      ? parseLocalSourcesNative({ sources: localSources as ("opencode" | "claude" | "codex" | "gemini")[] })
+      ? parseLocalSourcesNative({ sources: localSources as ("opencode" | "claude" | "codex" | "gemini")[], since, until, year })
       : Promise.resolve({ messages: [], opencodeCount: 0, claudeCount: 0, codexCount: 0, geminiCount: 0, processingTimeMs: 0 } as ParsedMessages),
   ]);
 
@@ -104,12 +101,18 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
     localMessages: localMessages || emptyMessages,
     pricing: pricingFetcher.toPricingEntries(),
     includeCursor: includeCursor && cursorSync.synced,
+    since,
+    until,
+    year,
   });
 
   const graph = finalizeGraphNative({
     localMessages: localMessages || emptyMessages,
     pricing: pricingFetcher.toPricingEntries(),
     includeCursor: includeCursor && cursorSync.synced,
+    since,
+    until,
+    year,
   });
 
   const modelEntries: ModelEntry[] = report.entries.map(e => ({
@@ -145,12 +148,17 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
   }
   const dailyEntries = Array.from(dailyMap.values()).sort((a, b) => b.date.localeCompare(a.date));
 
-  const maxCost = Math.max(...dailyEntries.map(d => d.cost), 1);
+  let maxCost = 1;
+  for (const d of dailyEntries) {
+    if (d.cost > maxCost) maxCost = d.cost;
+  }
   const contributions: ContributionDay[] = dailyEntries.map(d => ({
     date: d.date,
     cost: d.cost,
-    level: Math.min(4, Math.floor((d.cost / maxCost) * 5)),
+    level: d.cost === 0 ? 0 : (Math.min(4, Math.ceil((d.cost / maxCost) * 4)) as 0 | 1 | 2 | 3 | 4),
   }));
+
+  const contributionGrid = buildContributionGrid(contributions);
 
   const modelCosts = new Map<string, number>();
   for (const e of modelEntries) {
@@ -168,12 +176,39 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
 
   let currentStreak = 0;
   let longestStreak = 0;
-  let streak = 0;
+  
   const sortedDates = dailyEntries.map(d => d.date).sort();
-  for (let i = 0; i < sortedDates.length; i++) {
-    if (i === 0) {
-      streak = 1;
-    } else {
+  if (sortedDates.length > 0) {
+    const todayParts = new Date().toISOString().split("T")[0].split("-").map(Number);
+    const todayUTC = Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]);
+    
+    let streak = 0;
+    for (let i = sortedDates.length - 1; i >= 0; i--) {
+      const dateParts = sortedDates[i].split("-").map(Number);
+      const dateUTC = Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]);
+      const daysFromToday = Math.round((todayUTC - dateUTC) / (1000 * 60 * 60 * 24));
+      
+      if (i === sortedDates.length - 1) {
+        if (daysFromToday <= 1) {
+          streak = 1;
+        } else {
+          break;
+        }
+      } else {
+        const prevParts = sortedDates[i + 1].split("-").map(Number);
+        const prevUTC = Date.UTC(prevParts[0], prevParts[1] - 1, prevParts[2]);
+        const diffDays = Math.round((prevUTC - dateUTC) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+    }
+    currentStreak = streak;
+    
+    streak = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
       const prevParts = sortedDates[i - 1].split("-").map(Number);
       const currParts = sortedDates[i].split("-").map(Number);
       const prevDate = Date.UTC(prevParts[0], prevParts[1] - 1, prevParts[2]);
@@ -186,9 +221,8 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
         streak = 1;
       }
     }
+    longestStreak = Math.max(longestStreak, streak);
   }
-  longestStreak = Math.max(longestStreak, streak);
-  currentStreak = streak;
 
   const stats: Stats = {
     favoriteModel,
@@ -256,35 +290,50 @@ async function loadData(enabledSources: Set<SourceType>): Promise<TUIData> {
     })
     .sort((a, b) => b.cost - a.cost);
 
+  const totals: TotalBreakdown = {
+    input: report.totalInput,
+    output: report.totalOutput,
+    cacheWrite: report.totalCacheWrite,
+    cacheRead: report.totalCacheRead,
+    total: report.totalInput + report.totalOutput + report.totalCacheWrite + report.totalCacheRead,
+    cost: report.totalCost,
+  };
+
   return {
     modelEntries,
     dailyEntries,
     contributions,
+    contributionGrid,
     stats,
     totalCost: report.totalCost,
+    totals,
     modelCount: modelEntries.length,
     chartData,
     topModels,
   };
 }
 
-export function useData(enabledSources: Set<SourceType>) {
-  const [data, setData] = useState<TUIData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function useData(enabledSources: Accessor<Set<SourceType>>, dateFilters?: DateFilters) {
+  const [data, setData] = createSignal<TUIData | null>(null);
+  const [loading, setLoading] = createSignal(true);
+  const [error, setError] = createSignal<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = createSignal(0);
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    loadData(enabledSources)
-      .then(setData)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [enabledSources]);
+  const refresh = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  createEffect(on(
+    () => [enabledSources(), refreshTrigger()] as const,
+    ([sources]) => {
+      setLoading(true);
+      setError(null);
+      loadData(sources, dateFilters)
+        .then(setData)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false));
+    }
+  ));
 
   return { data, loading, error, refresh };
 }

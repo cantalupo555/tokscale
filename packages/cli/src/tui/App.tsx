@@ -1,245 +1,260 @@
-import { useState, useEffect } from "react";
-import { Box, Text, useInput, useApp, useStdout } from "ink";
+import { createSignal, Switch, Match } from "solid-js";
+import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
 import { Header } from "./components/Header.js";
 import { Footer } from "./components/Footer.js";
 import { ModelView } from "./components/ModelView.js";
 import { DailyView } from "./components/DailyView.js";
 import { StatsView } from "./components/StatsView.js";
 import { OverviewView } from "./components/OverviewView.js";
-import { useData } from "./hooks/useData.js";
+import { LoadingSpinner } from "./components/LoadingSpinner.js";
+import { useData, type DateFilters } from "./hooks/useData.js";
+import type { ColorPaletteName } from "./config/themes.js";
+import { DEFAULT_PALETTE, getPaletteNames } from "./config/themes.js";
+import { loadSettings, saveSettings } from "./config/settings.js";
+import { TABS, ALL_SOURCES, type TUIOptions, type TabType, type SortType, type SourceType } from "./types/index.js";
 
-export type TabType = "overview" | "model" | "daily" | "stats";
-export type SortType = "cost" | "name" | "tokens";
-export type SourceType = "opencode" | "claude" | "codex" | "cursor" | "gemini";
+export type AppProps = TUIOptions;
 
-export interface AppState {
-  activeTab: TabType;
-  enabledSources: Set<SourceType>;
-  sortBy: SortType;
-  sortDesc: boolean;
-  selectedIndex: number;
-  scrollOffset: number;
+const PALETTE_NAMES = getPaletteNames();
+
+function cycleTabForward(current: TabType): TabType {
+  const idx = TABS.indexOf(current);
+  return TABS[(idx + 1) % TABS.length];
 }
 
-function useStdoutDimensions(): [number, number] {
-  const { stdout } = useStdout();
-  const [dimensions, setDimensions] = useState<[number, number]>([stdout.columns || 80, stdout.rows || 24]);
-  
-  useEffect(() => {
-    const handler = () => setDimensions([stdout.columns || 80, stdout.rows || 24]);
-    stdout.on("resize", handler);
-    return () => { stdout.off("resize", handler); };
-  }, [stdout]);
-  
-  return dimensions;
+function cycleTabBackward(current: TabType): TabType {
+  const idx = TABS.indexOf(current);
+  return TABS[(idx - 1 + TABS.length) % TABS.length];
 }
 
-export function App() {
-  const { exit } = useApp();
-  const [columns, rows] = useStdoutDimensions();
-  
-  const [state, setState] = useState<AppState>({
-    activeTab: "overview",
-    enabledSources: new Set(["opencode", "claude", "codex", "cursor", "gemini"]),
-    sortBy: "cost",
-    sortDesc: true,
-    selectedIndex: 0,
-    scrollOffset: 0,
-  });
+export function App(props: AppProps) {
+  const terminalDimensions = useTerminalDimensions();
+  const columns = () => terminalDimensions().width;
+  const rows = () => terminalDimensions().height;
 
-  const { data, loading, error, refresh } = useData(state.enabledSources);
+  const settings = loadSettings();
+  const [activeTab, setActiveTab] = createSignal<TabType>(props.initialTab ?? "overview");
+  const [enabledSources, setEnabledSources] = createSignal<Set<SourceType>>(
+    new Set(props.enabledSources ?? ALL_SOURCES)
+  );
+  const [sortBy, setSortBy] = createSignal<SortType>(props.sortBy ?? "cost");
+  const [sortDesc, setSortDesc] = createSignal(props.sortDesc ?? true);
+  const [selectedIndex, setSelectedIndex] = createSignal(0);
+  const [scrollOffset, setScrollOffset] = createSignal(0);
+  const [colorPalette, setColorPalette] = createSignal<ColorPaletteName>(
+    props.colorPalette ?? (settings.colorPalette as ColorPaletteName) ?? DEFAULT_PALETTE
+  );
 
-  useInput((input, key) => {
-    if (input === "q") {
-      exit();
-      return;
+  const dateFilters: DateFilters = {
+    since: props.since,
+    until: props.until,
+    year: props.year,
+  };
+
+  const { data, loading, error, refresh } = useData(() => enabledSources(), dateFilters);
+
+  const contentHeight = () => Math.max(rows() - 6, 12);
+  const overviewChartHeight = () => Math.max(5, Math.floor(contentHeight() * 0.35));
+  const overviewListHeight = () => Math.max(4, contentHeight() - overviewChartHeight() - 4);
+  const overviewItemsPerPage = () => Math.max(1, Math.floor(overviewListHeight() / 2));
+
+  const handleSourceToggle = (source: SourceType) => {
+    const newSources = new Set(enabledSources());
+    if (newSources.has(source)) {
+      if (newSources.size > 1) {
+        newSources.delete(source);
+      }
+    } else {
+      newSources.add(source);
+    }
+    setEnabledSources(newSources);
+  };
+
+  const handlePaletteChange = () => {
+    const currentIdx = PALETTE_NAMES.indexOf(colorPalette());
+    const nextIdx = (currentIdx + 1) % PALETTE_NAMES.length;
+    const newPalette = PALETTE_NAMES[nextIdx];
+    saveSettings({ colorPalette: newPalette });
+    setColorPalette(newPalette);
+  };
+
+  const handleSortChange = (sort: SortType) => {
+    setSortBy(sort);
+    setSortDesc(sort !== "name");
+  };
+
+  useKeyboard((key) => {
+    if (key.name === "q") {
+      process.exit(0);
     }
 
-    if (input === "r") {
+    if (key.name === "r") {
       refresh();
       return;
     }
 
-    const cycleTab = (current: TabType): TabType => {
-      const tabs: TabType[] = ["overview", "model", "daily", "stats"];
-      const idx = tabs.indexOf(current);
-      return tabs[(idx + 1) % tabs.length];
-    };
-
-    if (key.tab || input === "d") {
-      setState((s) => ({
-        ...s,
-        activeTab: cycleTab(s.activeTab),
-        selectedIndex: 0,
-        scrollOffset: 0,
-      }));
+    if (key.name === "tab" || key.name === "d" || key.name === "right") {
+      setActiveTab(cycleTabForward(activeTab()));
+      setSelectedIndex(0);
+      setScrollOffset(0);
       return;
     }
 
-    if (input === "c") {
-      setState((s) => ({ ...s, sortBy: "cost", sortDesc: true }));
-      return;
-    }
-    if (input === "n") {
-      setState((s) => ({ ...s, sortBy: "name", sortDesc: false }));
-      return;
-    }
-    if (input === "t") {
-      setState((s) => ({ ...s, sortBy: "tokens", sortDesc: true }));
+    if (key.name === "left") {
+      setActiveTab(cycleTabBackward(activeTab()));
+      setSelectedIndex(0);
+      setScrollOffset(0);
       return;
     }
 
-    if (input === "1") {
-      setState((s) => {
-        const newSources = new Set(s.enabledSources);
-        if (newSources.has("opencode")) newSources.delete("opencode");
-        else newSources.add("opencode");
-        return { ...s, enabledSources: newSources };
-      });
+    if (key.name === "c") {
+      setSortBy("cost");
+      setSortDesc(true);
       return;
     }
-    if (input === "2") {
-      setState((s) => {
-        const newSources = new Set(s.enabledSources);
-        if (newSources.has("claude")) newSources.delete("claude");
-        else newSources.add("claude");
-        return { ...s, enabledSources: newSources };
-      });
+    if (key.name === "n") {
+      setSortBy("name");
+      setSortDesc(false);
       return;
     }
-    if (input === "3") {
-      setState((s) => {
-        const newSources = new Set(s.enabledSources);
-        if (newSources.has("codex")) newSources.delete("codex");
-        else newSources.add("codex");
-        return { ...s, enabledSources: newSources };
-      });
-      return;
-    }
-    if (input === "4") {
-      setState((s) => {
-        const newSources = new Set(s.enabledSources);
-        if (newSources.has("cursor")) newSources.delete("cursor");
-        else newSources.add("cursor");
-        return { ...s, enabledSources: newSources };
-      });
-      return;
-    }
-    if (input === "5") {
-      setState((s) => {
-        const newSources = new Set(s.enabledSources);
-        if (newSources.has("gemini")) newSources.delete("gemini");
-        else newSources.add("gemini");
-        return { ...s, enabledSources: newSources };
-      });
+    if (key.name === "t") {
+      setSortBy("tokens");
+      setSortDesc(true);
       return;
     }
 
-    if (key.upArrow) {
-      setState((s) => {
-        if (s.activeTab === "overview" && s.scrollOffset > 0) {
-          return { ...s, scrollOffset: s.scrollOffset - 1 };
+    if (key.name === "p") {
+      handlePaletteChange();
+      return;
+    }
+
+    if (key.name === "1") { handleSourceToggle("opencode"); return; }
+    if (key.name === "2") { handleSourceToggle("claude"); return; }
+    if (key.name === "3") { handleSourceToggle("codex"); return; }
+    if (key.name === "4") { handleSourceToggle("cursor"); return; }
+    if (key.name === "5") { handleSourceToggle("gemini"); return; }
+
+    if (key.name === "up") {
+      if (activeTab() === "overview" && scrollOffset() > 0) {
+        setScrollOffset(scrollOffset() - 1);
+      } else {
+        setSelectedIndex(Math.max(0, selectedIndex() - 1));
+      }
+      return;
+    }
+
+    if (key.name === "down") {
+      if (activeTab() === "overview") {
+        const maxOffset = Math.max(0, (data()?.topModels.length ?? 0) - overviewItemsPerPage());
+        setScrollOffset(Math.min(maxOffset, scrollOffset() + 1));
+      } else {
+        const d = data();
+        const maxIndex = activeTab() === "model" 
+          ? (d?.modelEntries.length ?? 0)
+          : (d?.dailyEntries.length ?? 0);
+        if (maxIndex > 0) {
+          setSelectedIndex(Math.min(selectedIndex() + 1, maxIndex - 1));
         }
-        return { ...s, selectedIndex: Math.max(0, s.selectedIndex - 1) };
-      });
-      return;
-    }
-    if (key.downArrow) {
-      setState((s) => {
-        if (s.activeTab === "overview") {
-          const chartH = Math.max(5, Math.floor(contentHeight * 0.35));
-          const listH = Math.max(4, contentHeight - chartH - 4);
-          const perPage = Math.max(1, Math.floor(listH / 2));
-          const maxOffset = Math.max(0, (data?.topModels.length ?? 0) - perPage);
-          return { ...s, scrollOffset: Math.min(maxOffset, s.scrollOffset + 1) };
-        }
-        return { ...s, selectedIndex: s.selectedIndex + 1 };
-      });
+      }
       return;
     }
 
-    if (input === "e" && data) {
-      import("node:fs").then((fs) => {
-        const exportData = {
-          exportedAt: new Date().toISOString(),
-          totalCost: data.totalCost,
-          modelCount: data.modelCount,
-          models: data.modelEntries,
-          daily: data.dailyEntries,
-          stats: data.stats,
-        };
-        const filename = `token-usage-export-${new Date().toISOString().split("T")[0]}.json`;
-        fs.writeFileSync(filename, JSON.stringify(exportData, null, 2));
-      });
+    if (key.name === "e" && data()) {
+      const d = data()!;
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        totalCost: d.totalCost,
+        modelCount: d.modelCount,
+        models: d.modelEntries,
+        daily: d.dailyEntries,
+        stats: d.stats,
+      };
+      const filename = `token-usage-export-${new Date().toISOString().split("T")[0]}.json`;
+      import("node:fs")
+        .then((fs) => {
+          fs.writeFileSync(filename, JSON.stringify(exportData, null, 2));
+        })
+        .catch(() => {});
       return;
     }
   });
 
-  const contentHeight = Math.max(rows - 6, 12);
-  
-  const overviewChartHeight = Math.max(5, Math.floor(contentHeight * 0.35));
-  const overviewListHeight = Math.max(4, contentHeight - overviewChartHeight - 4);
-  const overviewItemsPerPage = Math.max(1, Math.floor(overviewListHeight / 2));
+  const handleTabClick = (tab: TabType) => {
+    setActiveTab(tab);
+    setSelectedIndex(0);
+    setScrollOffset(0);
+  };
 
   return (
-    <Box flexDirection="column" width={columns} height={rows}>
-      <Header activeTab={state.activeTab} />
-      
-      <Box flexDirection="column" flexGrow={1} paddingX={1}>
-        {loading ? (
-          <Box justifyContent="center" alignItems="center" flexGrow={1}>
-            <Text color="cyan">Loading data...</Text>
-          </Box>
-        ) : error ? (
-          <Box justifyContent="center" alignItems="center" flexGrow={1}>
-            <Text color="red">Error: {error}</Text>
-          </Box>
-        ) : (
-          <>
-            {state.activeTab === "overview" && (
-              <OverviewView
-                data={data}
-                selectedIndex={state.selectedIndex}
-                scrollOffset={state.scrollOffset}
-                height={contentHeight}
-                width={columns}
-              />
-            )}
-            {state.activeTab === "model" && (
-              <ModelView 
-                data={data} 
-                sortBy={state.sortBy} 
-                sortDesc={state.sortDesc}
-                selectedIndex={state.selectedIndex}
-                height={contentHeight}
-              />
-            )}
-            {state.activeTab === "daily" && (
-              <DailyView 
-                data={data} 
-                sortBy={state.sortBy}
-                sortDesc={state.sortDesc}
-                selectedIndex={state.selectedIndex}
-                height={contentHeight}
-              />
-            )}
-            {state.activeTab === "stats" && (
-              <StatsView data={data} height={contentHeight} />
-            )}
-          </>
-        )}
-      </Box>
+    <box flexDirection="column" width={columns()} height={rows()}>
+      <Header activeTab={activeTab()} onTabClick={handleTabClick} />
 
-      <Footer 
-        enabledSources={state.enabledSources}
-        sortBy={state.sortBy}
-        totalCost={data?.totalCost ?? 0}
-        modelCount={data?.modelCount ?? 0}
-        activeTab={state.activeTab}
-        scrollStart={state.scrollOffset}
-        scrollEnd={Math.min(state.scrollOffset + overviewItemsPerPage, data?.topModels.length ?? 0)}
-        totalItems={data?.topModels.length}
+      <box flexDirection="column" flexGrow={1} paddingX={1}>
+        <Switch>
+          <Match when={loading()}>
+            <LoadingSpinner />
+          </Match>
+          <Match when={error()}>
+            <box justifyContent="center" alignItems="center" flexGrow={1}>
+              <text fg="red">{`Error: ${error()}`}</text>
+            </box>
+          </Match>
+          <Match when={data()}>
+            <Switch>
+              <Match when={activeTab() === "overview"}>
+                <OverviewView
+                  data={data()!}
+                  selectedIndex={selectedIndex()}
+                  scrollOffset={scrollOffset()}
+                  height={contentHeight()}
+                  width={columns()}
+                />
+              </Match>
+              <Match when={activeTab() === "model"}>
+                <ModelView
+                  data={data()!}
+                  sortBy={sortBy()}
+                  sortDesc={sortDesc()}
+                  selectedIndex={selectedIndex()}
+                  height={contentHeight()}
+                />
+              </Match>
+              <Match when={activeTab() === "daily"}>
+                <DailyView
+                  data={data()!}
+                  sortBy={sortBy()}
+                  sortDesc={sortDesc()}
+                  selectedIndex={selectedIndex()}
+                  height={contentHeight()}
+                />
+              </Match>
+              <Match when={activeTab() === "stats"}>
+                <StatsView
+                  data={data()!}
+                  height={contentHeight()}
+                  colorPalette={colorPalette()}
+                />
+              </Match>
+            </Switch>
+          </Match>
+        </Switch>
+      </box>
+
+      <Footer
+        enabledSources={enabledSources()}
+        sortBy={sortBy()}
+        totals={data()?.totals}
+        modelCount={data()?.modelCount ?? 0}
+        activeTab={activeTab()}
+        scrollStart={scrollOffset()}
+        scrollEnd={Math.min(scrollOffset() + overviewItemsPerPage(), data()?.topModels.length ?? 0)}
+        totalItems={data()?.topModels.length}
+        colorPalette={colorPalette()}
+        onSourceToggle={handleSourceToggle}
+        onSortChange={handleSortChange}
+        onPaletteChange={handlePaletteChange}
+        onRefresh={refresh}
       />
-    </Box>
+    </box>
   );
 }
