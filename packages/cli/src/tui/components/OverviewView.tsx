@@ -3,6 +3,7 @@ import { BarChart } from "./BarChart.js";
 import { Legend } from "./Legend.js";
 import { ModelListItem } from "./ModelListItem.js";
 import type { TUIData } from "../hooks/useData.js";
+import { formatCost } from "../utils/format.js";
 
 interface OverviewViewProps {
   data: TUIData;
@@ -10,11 +11,6 @@ interface OverviewViewProps {
   scrollOffset: number;
   height: number;
   width: number;
-}
-
-function formatCost(cost: number): string {
-  if (cost >= 1000) return `$${(cost / 1000).toFixed(1)}K`;
-  return `$${cost.toFixed(2)}`;
 }
 
 export function OverviewView(props: OverviewViewProps) {

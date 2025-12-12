@@ -1,5 +1,6 @@
 import { For, createMemo } from "solid-js";
 import type { TUIData, SortType } from "../hooks/useData.js";
+import { formatTokensCompact, formatCostFull } from "../utils/format.js";
 
 interface DailyViewProps {
   data: TUIData;
@@ -25,13 +26,6 @@ export function DailyView(props: DailyViewProps) {
   });
 
   const visibleEntries = createMemo(() => sortedEntries().slice(0, props.height - 3));
-
-  const formatNum = (n: number) => {
-    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${Math.floor(n / 1_000).toLocaleString()},${String(n % 1000).padStart(3, "0")}`;
-    return n.toLocaleString();
-  };
 
   const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
 
@@ -60,16 +54,16 @@ export function DailyView(props: DailyViewProps) {
                 fg={isSelected() ? "white" : undefined}
               >
                 {entry.date.padEnd(14)}
-                {formatNum(entry.input).padStart(14)}
-                {formatNum(entry.output).padStart(14)}
-                {formatNum(entry.cache).padStart(14)}
-                {formatNum(entry.total).padStart(16)}
+                {formatTokensCompact(entry.input).padStart(14)}
+                {formatTokensCompact(entry.output).padStart(14)}
+                {formatTokensCompact(entry.cache).padStart(14)}
+                {formatTokensCompact(entry.total).padStart(16)}
               </text>
               <text
                 fg="green"
                 backgroundColor={isSelected() ? "blue" : undefined}
               >
-                {formatCost(entry.cost).padStart(12)}
+                {formatCostFull(entry.cost).padStart(12)}
               </text>
             </box>
           );

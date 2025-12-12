@@ -3,6 +3,7 @@ import type { SourceType, SortType, TabType } from "../App.js";
 import type { ColorPaletteName } from "../config/themes.js";
 import type { TotalBreakdown } from "../hooks/useData.js";
 import { getPalette } from "../config/themes.js";
+import { formatTokens } from "../utils/format.js";
 
 interface FooterProps {
   enabledSources: Set<SourceType>;
@@ -18,13 +19,6 @@ interface FooterProps {
   onSortChange?: (sort: SortType) => void;
   onPaletteChange?: () => void;
   onRefresh?: () => void;
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toLocaleString();
 }
 
 export function Footer(props: FooterProps) {

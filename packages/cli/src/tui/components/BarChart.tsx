@@ -12,24 +12,25 @@ interface BarChartProps {
   height: number;
 }
 
+import { formatTokensCompact } from "../utils/format.js";
+
 const BLOCKS = [" ", "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const REPEAT_CACHE_MAX_SIZE = 256;
 
 const repeatCache = new Map<string, string>();
 function getRepeatedString(char: string, count: number): string {
   const key = `${char}:${count}`;
   let cached = repeatCache.get(key);
   if (!cached) {
+    if (repeatCache.size >= REPEAT_CACHE_MAX_SIZE) {
+      const firstKey = repeatCache.keys().next().value;
+      if (firstKey) repeatCache.delete(firstKey);
+    }
     cached = char.repeat(count);
     repeatCache.set(key, cached);
   }
   return cached;
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return n.toString();
 }
 
 function getDominantColor(models: { modelId: string; tokens: number; color: string }[]): string {
@@ -81,8 +82,7 @@ export function BarChart(props: BarChartProps) {
       if (parts.length === 3) {
         const month = parseInt(parts[1], 10);
         const day = parseInt(parts[2], 10);
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        labels.push(`${monthNames[month - 1]} ${day}`);
+        labels.push(`${MONTH_NAMES[month - 1]} ${day}`);
       } else {
         labels.push(dateStr.slice(5));
       }
@@ -125,7 +125,7 @@ export function BarChart(props: BarChartProps) {
         <text bold>Tokens per Day</text>
         <For each={rowIndices()}>
           {(row) => {
-            const yLabel = row === safeHeight() - 1 ? formatNumber(maxTotal()).padStart(6) : "      ";
+            const yLabel = row === safeHeight() - 1 ? formatTokensCompact(maxTotal()).padStart(6) : "      ";
             return (
               <box flexDirection="row">
                 <text dim>{yLabel}│</text>

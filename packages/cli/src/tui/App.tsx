@@ -18,6 +18,16 @@ export type SourceType = "opencode" | "claude" | "codex" | "cursor" | "gemini";
 const TABS: readonly TabType[] = ["overview", "model", "daily", "stats"] as const;
 const PALETTE_NAMES = getPaletteNames();
 
+function cycleTabForward(current: TabType): TabType {
+  const idx = TABS.indexOf(current);
+  return TABS[(idx + 1) % TABS.length];
+}
+
+function cycleTabBackward(current: TabType): TabType {
+  const idx = TABS.indexOf(current);
+  return TABS[(idx - 1 + TABS.length) % TABS.length];
+}
+
 export function App() {
   const terminalDimensions = useTerminalDimensions();
   const columns = () => terminalDimensions().width;
@@ -45,8 +55,13 @@ export function App() {
 
   const handleSourceToggle = (source: SourceType) => {
     const newSources = new Set(enabledSources());
-    if (newSources.has(source)) newSources.delete(source);
-    else newSources.add(source);
+    if (newSources.has(source)) {
+      if (newSources.size > 1) {
+        newSources.delete(source);
+      }
+    } else {
+      newSources.add(source);
+    }
     setEnabledSources(newSources);
   };
 
@@ -72,16 +87,6 @@ export function App() {
       refresh();
       return;
     }
-
-    const cycleTabForward = (current: TabType): TabType => {
-      const idx = TABS.indexOf(current);
-      return TABS[(idx + 1) % TABS.length];
-    };
-
-    const cycleTabBackward = (current: TabType): TabType => {
-      const idx = TABS.indexOf(current);
-      return TABS[(idx - 1 + TABS.length) % TABS.length];
-    };
 
     if (key.name === "tab" || key.name === "d" || key.name === "right") {
       setActiveTab(cycleTabForward(activeTab()));
@@ -138,25 +143,33 @@ export function App() {
         const maxOffset = Math.max(0, (data()?.topModels.length ?? 0) - overviewItemsPerPage());
         setScrollOffset(Math.min(maxOffset, scrollOffset() + 1));
       } else {
-        setSelectedIndex(selectedIndex() + 1);
+        const d = data();
+        const maxIndex = activeTab() === "model" 
+          ? (d?.modelEntries.length ?? 0)
+          : (d?.dailyEntries.length ?? 0);
+        if (maxIndex > 0) {
+          setSelectedIndex(Math.min(selectedIndex() + 1, maxIndex - 1));
+        }
       }
       return;
     }
 
     if (key.name === "e" && data()) {
-      import("node:fs").then((fs) => {
-        const d = data()!;
-        const exportData = {
-          exportedAt: new Date().toISOString(),
-          totalCost: d.totalCost,
-          modelCount: d.modelCount,
-          models: d.modelEntries,
-          daily: d.dailyEntries,
-          stats: d.stats,
-        };
-        const filename = `token-usage-export-${new Date().toISOString().split("T")[0]}.json`;
-        fs.writeFileSync(filename, JSON.stringify(exportData, null, 2));
-      });
+      const d = data()!;
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        totalCost: d.totalCost,
+        modelCount: d.modelCount,
+        models: d.modelEntries,
+        daily: d.dailyEntries,
+        stats: d.stats,
+      };
+      const filename = `token-usage-export-${new Date().toISOString().split("T")[0]}.json`;
+      import("node:fs")
+        .then((fs) => {
+          fs.writeFileSync(filename, JSON.stringify(exportData, null, 2));
+        })
+        .catch(() => {});
       return;
     }
   });

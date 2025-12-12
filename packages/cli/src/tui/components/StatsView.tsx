@@ -3,6 +3,7 @@ import type { TUIData } from "../hooks/useData.js";
 import type { ColorPaletteName } from "../config/themes.js";
 import { getPalette, getGradeColor } from "../config/themes.js";
 import { getModelColor } from "../utils/colors.js";
+import { formatTokens } from "../utils/format.js";
 
 interface StatsViewProps {
   data: TUIData;
@@ -15,13 +16,6 @@ const DAYS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
 export function StatsView(props: StatsViewProps) {
   const palette = () => getPalette(props.colorPalette);
-
-  const formatTokens = (n: number) => {
-    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-    return n.toString();
-  };
 
   const grid = () => props.data.contributionGrid;
 

@@ -1,6 +1,7 @@
 import { For, createMemo } from "solid-js";
 import type { TUIData, SortType } from "../hooks/useData.js";
 import { getModelColor } from "../utils/colors.js";
+import { formatTokensCompact, formatCostFull } from "../utils/format.js";
 
 interface ModelViewProps {
   data: TUIData;
@@ -26,15 +27,6 @@ export function ModelView(props: ModelViewProps) {
   });
 
   const visibleEntries = createMemo(() => sortedEntries().slice(0, props.height - 3));
-
-  const formatNum = (n: number) => {
-    if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-    return n.toLocaleString();
-  };
-
-  const formatCost = (cost: number) => `$${cost.toFixed(2)}`;
 
   return (
     <box flexDirection="column">
@@ -64,16 +56,16 @@ export function ModelView(props: ModelViewProps) {
                 fg={isSelected() ? "white" : undefined}
               >
                 {displayName.padEnd(23)}
-                {formatNum(entry.input).padStart(12)}
-                {formatNum(entry.output).padStart(12)}
-                {formatNum(entry.cacheRead).padStart(12)}
-                {formatNum(entry.total).padStart(14)}
+                {formatTokensCompact(entry.input).padStart(12)}
+                {formatTokensCompact(entry.output).padStart(12)}
+                {formatTokensCompact(entry.cacheRead).padStart(12)}
+                {formatTokensCompact(entry.total).padStart(14)}
               </text>
               <text
                 fg="green"
                 backgroundColor={isSelected() ? "blue" : undefined}
               >
-                {formatCost(entry.cost).padStart(12)}
+                {formatCostFull(entry.cost).padStart(12)}
               </text>
             </box>
           );
