@@ -49,7 +49,7 @@ export function OverviewView(props: OverviewViewProps) {
                 percentage={model.percentage}
                 inputTokens={model.inputTokens}
                 outputTokens={model.outputTokens}
-                isSelected={props.scrollOffset() + i() === props.selectedIndex()}
+                isSelected={() => props.scrollOffset() + i() === props.selectedIndex()}
               />
             )}
           </For>
