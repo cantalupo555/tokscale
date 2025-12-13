@@ -22,9 +22,10 @@ interface NativeRunnerRequest {
 async function readStdinWithLimits(): Promise<string> {
   const chunks: Buffer[] = [];
   let totalSize = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error(`Stdin read timed out after ${STDIN_TIMEOUT_MS}ms`)), STDIN_TIMEOUT_MS);
+    timeoutId = setTimeout(() => reject(new Error(`Stdin read timed out after ${STDIN_TIMEOUT_MS}ms`)), STDIN_TIMEOUT_MS);
   });
 
   const readPromise = (async () => {
@@ -39,7 +40,12 @@ async function readStdinWithLimits(): Promise<string> {
     return Buffer.concat(chunks).toString("utf-8");
   })();
 
-  return Promise.race([readPromise, timeoutPromise]);
+  try {
+    const result = await Promise.race([readPromise, timeoutPromise]);
+    return result;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 async function main() {
