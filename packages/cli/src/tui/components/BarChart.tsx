@@ -33,10 +33,6 @@ function getRepeatedString(char: string, count: number): string {
   return cached;
 }
 
-function getDominantColor(models: { modelId: string; tokens: number; color: string }[]): string {
-  if (models.length === 0) return "white";
-  return models.reduce((max, m) => (m.tokens > max.tokens ? m : max), models[0]).color;
-}
 
 export function BarChart(props: BarChartProps) {
   const data = () => props.data;
@@ -108,7 +104,29 @@ export function BarChart(props: BarChartProps) {
       return { char: getRepeatedString(" ", bw), color: "dim" };
     }
 
-    const color = getDominantColor(point.models);
+    const sortedModels = [...point.models].sort((a, b) => a.modelId.localeCompare(b.modelId));
+    
+    let currentHeight = 0;
+    let maxOverlap = 0;
+    let color = sortedModels[0]?.color || "white";
+
+    const rowStart = prevThreshold;
+    const rowEnd = rowThreshold;
+
+    for (const m of sortedModels) {
+      const mStart = currentHeight;
+      const mEnd = currentHeight + m.tokens;
+      currentHeight += m.tokens;
+
+      const overlapStart = Math.max(mStart, rowStart);
+      const overlapEnd = Math.min(mEnd, rowEnd);
+      const overlap = Math.max(0, overlapEnd - overlapStart);
+
+      if (overlap > maxOverlap) {
+        maxOverlap = overlap;
+        color = m.color;
+      }
+    }
 
     if (point.total >= rowThreshold) {
       return { char: getRepeatedString("█", bw), color };
@@ -117,6 +135,7 @@ export function BarChart(props: BarChartProps) {
     const ratio = thresholdDiff > 0 ? (point.total - prevThreshold) / thresholdDiff : 1;
     const blockIndex = Math.min(8, Math.max(1, Math.floor(ratio * 8)));
     return { char: getRepeatedString(BLOCKS[blockIndex], bw), color };
+
   };
 
   return (
