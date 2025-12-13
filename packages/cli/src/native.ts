@@ -466,6 +466,13 @@ const NATIVE_TIMEOUT_MS = parseInt(
   10
 );
 
+// Timeout-related exit codes
+const TIMEOUT_EXIT_CODES = new Set([
+  124,  // GNU timeout default
+  143,  // 128 + 15 (SIGTERM)
+  137,  // 128 + 9 (SIGKILL - when SIGTERM fails)
+]);
+
 async function runInSubprocess<T>(method: string, args: unknown[]): Promise<T> {
   const runnerPath = join(__dirname, "native-runner.ts");
   const input = JSON.stringify({ method, args });
@@ -479,19 +486,37 @@ async function runInSubprocess<T>(method: string, args: unknown[]): Promise<T> {
     killSignal: "SIGTERM",
   });
 
+  // Helper to consume streams (prevents resource leaks)
+  const consumeStreams = async (): Promise<{ stdout: string; stderr: string }> => {
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    return { stdout, stderr };
+  };
+
   try {
     proc.stdin.write(input);
     proc.stdin.end();
   } catch (e) {
     proc.kill("SIGTERM");
+    // Must consume streams even after kill to prevent resource leaks
+    await consumeStreams().catch(() => {}); // Ignore stream errors after kill
+    await proc.exited.catch(() => {}); // Wait for process to exit
     throw new Error(`Failed to write to subprocess stdin: ${(e as Error).message}`);
   }
 
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+  const [{ stdout, stderr }, exitCode] = await Promise.all([
+    consumeStreams(),
     proc.exited,
   ]);
+
+  // Check for timeout exit codes
+  if (TIMEOUT_EXIT_CODES.has(exitCode)) {
+    throw new Error(
+      `Subprocess '${method}' timed out after ${NATIVE_TIMEOUT_MS}ms (exit code ${exitCode})`
+    );
+  }
 
   if (exitCode !== 0) {
     let errorMsg = stderr || `Process exited with code ${exitCode}`;

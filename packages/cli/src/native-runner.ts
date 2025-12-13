@@ -11,19 +11,39 @@
 
 import nativeCore from "@0xinevitable/token-tracker-core";
 
+const MAX_INPUT_SIZE = 50 * 1024 * 1024; // 50MB
+const STDIN_TIMEOUT_MS = 30_000; // 30s
+
 interface NativeRunnerRequest {
   method: string;
   args: unknown[];
 }
 
-async function main() {
+async function readStdinWithLimits(): Promise<string> {
   const chunks: Buffer[] = [];
-  
-  for await (const chunk of process.stdin) {
-    chunks.push(Buffer.from(chunk as ArrayBuffer));
-  }
-  
-  const input = Buffer.concat(chunks).toString("utf-8");
+  let totalSize = 0;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`Stdin read timed out after ${STDIN_TIMEOUT_MS}ms`)), STDIN_TIMEOUT_MS);
+  });
+
+  const readPromise = (async () => {
+    for await (const chunk of process.stdin) {
+      const buf = Buffer.from(chunk as ArrayBuffer);
+      totalSize += buf.length;
+      if (totalSize > MAX_INPUT_SIZE) {
+        throw new Error(`Input exceeds maximum size of ${MAX_INPUT_SIZE} bytes (${Math.round(MAX_INPUT_SIZE / 1024 / 1024)}MB)`);
+      }
+      chunks.push(buf);
+    }
+    return Buffer.concat(chunks).toString("utf-8");
+  })();
+
+  return Promise.race([readPromise, timeoutPromise]);
+}
+
+async function main() {
+  const input = await readStdinWithLimits();
   
   if (!input.trim()) {
     process.stderr.write(JSON.stringify({ error: "No input received" }));
