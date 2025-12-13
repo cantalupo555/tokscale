@@ -2,6 +2,8 @@ import { For, createMemo, type Accessor } from "solid-js";
 import type { TUIData, SortType } from "../hooks/useData.js";
 import { formatTokensCompact, formatCostFull } from "../utils/format.js";
 
+const STRIPE_BG = "#232328";
+
 interface DailyViewProps {
   data: TUIData;
   sortBy: SortType;
@@ -48,7 +50,7 @@ export function DailyView(props: DailyViewProps) {
       <For each={visibleEntries()}>
         {(entry, i) => {
           const isActive = createMemo(() => i() === props.selectedIndex());
-          const rowBg = createMemo(() => isActive() ? "blue" : undefined);
+          const rowBg = createMemo(() => isActive() ? "blue" : (i() % 2 === 1 ? STRIPE_BG : undefined));
           
           return (
             <box flexDirection="row">

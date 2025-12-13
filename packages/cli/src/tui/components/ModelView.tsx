@@ -3,6 +3,8 @@ import type { TUIData, SortType } from "../hooks/useData.js";
 import { getModelColor } from "../utils/colors.js";
 import { formatTokensCompact, formatCostFull } from "../utils/format.js";
 
+const STRIPE_BG = "#232328";
+
 const INPUT_COL_WIDTH = 12;
 const OUTPUT_COL_WIDTH = 12;
 const CACHE_COL_WIDTH = 12;
@@ -95,7 +97,7 @@ export function ModelView(props: ModelViewProps) {
       <For each={formattedRows()}>
         {(row, i) => {
           const isActive = createMemo(() => i() === props.selectedIndex());
-          const rowBg = createMemo(() => isActive() ? "blue" : undefined);
+          const rowBg = createMemo(() => isActive() ? "blue" : (i() % 2 === 1 ? STRIPE_BG : undefined));
           
           return (
             <box flexDirection="row">
