@@ -170,6 +170,7 @@ interface NativeParsedMessage {
   cacheRead: number;
   cacheWrite: number;
   reasoning: number;
+  sessionId: string;
 }
 
 interface NativeParsedMessages {
@@ -490,6 +491,7 @@ export interface ParsedMessages {
     cacheRead: number;
     cacheWrite: number;
     reasoning: number;
+    sessionId: string;
   }>;
   opencodeCount: number;
   claudeCount: number;
