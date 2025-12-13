@@ -6,6 +6,7 @@ import { SegmentedControl, Pagination, Avatar } from "@primer/react";
 import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { LeaderboardSkeleton } from "@/components/Skeleton";
+import { BlackholeHero } from "@/components/BlackholeHero";
 
 type Period = "all" | "month" | "week";
 
@@ -74,6 +75,8 @@ export default function LeaderboardPage() {
       <Navigation />
 
       <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+        <BlackholeHero />
+
         <div className="mb-10">
           <h1 className="text-3xl font-bold mb-2" style={{ color: "#FFFFFF" }}>
             Leaderboard
