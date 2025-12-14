@@ -44,6 +44,21 @@ export function OverviewView(props: OverviewViewProps) {
     });
   });
 
+  const totalForPercentage = createMemo(() => {
+    const models = props.data.topModels;
+    if (props.sortBy === "tokens") {
+      return models.reduce((sum, m) => sum + m.totalTokens, 0) || 1;
+    }
+    return models.reduce((sum, m) => sum + m.cost, 0) || 1;
+  });
+
+  const getPercentage = (model: typeof props.data.topModels[0]) => {
+    if (props.sortBy === "tokens") {
+      return (model.totalTokens / totalForPercentage()) * 100;
+    }
+    return (model.cost / totalForPercentage()) * 100;
+  };
+
   const visibleModels = () => sortedModels().slice(props.scrollOffset(), props.scrollOffset() + itemsPerPage());
   const totalModels = () => sortedModels().length;
   const endIndex = () => Math.min(props.scrollOffset() + visibleModels().length, totalModels());
@@ -76,7 +91,7 @@ export function OverviewView(props: OverviewViewProps) {
                   <box flexDirection="row" backgroundColor={bgColor()}>
                     <text fg={color()} bg={bgColor()}>●</text>
                     <text fg={isActive() ? "white" : undefined} bg={bgColor()}>{` ${truncateModelName(model.modelId)} `}</text>
-                    <text dim bg={bgColor()}>{`(${model.percentage.toFixed(1)}%)`}</text>
+                    <text dim bg={bgColor()}>{`(${getPercentage(model).toFixed(1)}%)`}</text>
                   </box>
                   <box flexDirection="row">
                     <Show when={isVeryNarrowTerminal()} fallback={
