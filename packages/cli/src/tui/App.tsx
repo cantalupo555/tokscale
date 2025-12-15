@@ -53,7 +53,9 @@ export function App(props: AppProps) {
     year: props.year,
   };
 
-  const { data, loading, error, refresh } = useData(() => enabledSources(), dateFilters);
+  const { data, loading, error, refresh, loadingPhase, isRefreshing } = useData(() => enabledSources(), dateFilters);
+  
+  const [selectedDate, setSelectedDate] = createSignal<string | null>(null);
 
   const [statusMessage, setStatusMessage] = createSignal<string | null>(null);
   let statusTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -246,6 +248,7 @@ export function App(props: AppProps) {
     setActiveTab(tab);
     setSelectedIndex(0);
     setScrollOffset(0);
+    setSelectedDate(null);
   };
 
   return (
@@ -255,7 +258,7 @@ export function App(props: AppProps) {
       <box flexDirection="column" flexGrow={1} paddingX={1}>
         <Switch>
           <Match when={loading()}>
-            <LoadingSpinner />
+            <LoadingSpinner phase={loadingPhase()} />
           </Match>
           <Match when={error()}>
             <box justifyContent="center" alignItems="center" flexGrow={1}>
@@ -301,6 +304,8 @@ export function App(props: AppProps) {
                   height={contentHeight()}
                   colorPalette={colorPalette()}
                   width={columns()}
+                  selectedDate={selectedDate()}
+                  onDateSelect={setSelectedDate}
                 />
               </Match>
             </Switch>
@@ -319,6 +324,7 @@ export function App(props: AppProps) {
         totalItems={data()?.topModels.length}
         colorPalette={colorPalette()}
         statusMessage={statusMessage()}
+        isRefreshing={isRefreshing()}
         width={columns()}
         onSourceToggle={handleSourceToggle}
         onSortChange={handleSortChange}

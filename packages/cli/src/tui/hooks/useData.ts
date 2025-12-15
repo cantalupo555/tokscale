@@ -11,6 +11,8 @@ import type {
   TotalBreakdown,
   TUIData,
   ChartDataPoint,
+  LoadingPhase,
+  DailyModelBreakdown,
 } from "../types/index.js";
 import {
   parseLocalSourcesAsync,
@@ -21,6 +23,7 @@ import {
 import { PricingFetcher } from "../../pricing.js";
 import { syncCursorCache, loadCursorCredentials } from "../../cursor.js";
 import { getModelColor } from "../utils/colors.js";
+import { loadCachedData, saveCachedData, isCacheStale } from "../config/settings.js";
 
 export type {
   SortType,
@@ -32,6 +35,7 @@ export type {
   GridCell,
   TotalBreakdown,
   TUIData,
+  LoadingPhase,
 };
 
 export interface DateFilters {
@@ -382,6 +386,30 @@ async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilte
     cost: report.totalCost,
   };
 
+  const dailyBreakdowns = new Map<string, DailyModelBreakdown>();
+  for (const contrib of graph.contributions) {
+    const models = contrib.sources.map((source: { modelId: string; source: string; tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; reasoning?: number }; cost: number; messages: number }) => ({
+      modelId: source.modelId,
+      source: source.source,
+      tokens: {
+        input: source.tokens.input,
+        output: source.tokens.output,
+        cacheRead: source.tokens.cacheRead,
+        cacheWrite: source.tokens.cacheWrite,
+        reasoning: source.tokens.reasoning || 0,
+      },
+      cost: source.cost,
+      messages: source.messages,
+    }));
+    
+    dailyBreakdowns.set(contrib.date, {
+      date: contrib.date,
+      cost: contrib.totals.cost,
+      totalTokens: contrib.totals.tokens,
+      models: models.sort((a, b) => b.cost - a.cost),
+    });
+  }
+
   return {
     modelEntries,
     dailyEntries,
@@ -393,6 +421,7 @@ async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilte
     modelCount: modelEntries.length,
     chartData,
     topModels,
+    dailyBreakdowns,
   };
 }
 
@@ -401,6 +430,8 @@ export function useData(enabledSources: Accessor<Set<SourceType>>, dateFilters?:
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = createSignal(0);
+  const [loadingPhase, setLoadingPhase] = createSignal<LoadingPhase>("idle");
+  const [isRefreshing, setIsRefreshing] = createSignal(false);
 
   const refresh = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -409,14 +440,40 @@ export function useData(enabledSources: Accessor<Set<SourceType>>, dateFilters?:
   createEffect(on(
     () => [enabledSources(), refreshTrigger()] as const,
     ([sources]) => {
-      setLoading(true);
+      const cachedData = loadCachedData(sources);
+      const cacheIsStale = isCacheStale(sources);
+      
+      if (cachedData && !cacheIsStale) {
+        setData(cachedData);
+        setLoading(false);
+        setLoadingPhase("complete");
+        return;
+      }
+      
+      if (cachedData) {
+        setData(cachedData);
+        setLoading(false);
+        setIsRefreshing(true);
+        setLoadingPhase("loading-pricing");
+      } else {
+        setLoading(true);
+        setLoadingPhase("loading-pricing");
+      }
+      
       setError(null);
       loadData(sources, dateFilters)
-        .then(setData)
+        .then((freshData) => {
+          setData(freshData);
+          saveCachedData(freshData, sources);
+        })
         .catch((e) => setError(e.message))
-        .finally(() => setLoading(false));
+        .finally(() => {
+          setLoading(false);
+          setIsRefreshing(false);
+          setLoadingPhase("complete");
+        });
     }
   ));
 
-  return { data, loading, error, refresh };
+  return { data, loading, error, refresh, loadingPhase, isRefreshing };
 }

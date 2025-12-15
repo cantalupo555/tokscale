@@ -17,6 +17,7 @@ interface FooterProps {
   totalItems?: number;
   colorPalette: ColorPaletteName;
   statusMessage?: string | null;
+  isRefreshing?: boolean;
   width?: number;
   onSourceToggle?: (source: SourceType) => void;
   onSortChange?: (sort: SortType) => void;
@@ -73,6 +74,10 @@ export function Footer(props: FooterProps) {
         </box>
       </box>
       <box flexDirection="row" gap={1}>
+        <Show when={props.isRefreshing}>
+          <text fg="cyan">↻ Refreshing...</text>
+          <text dim>|</text>
+        </Show>
         <Show when={props.statusMessage} fallback={
           <Show when={isVeryNarrowTerminal()} fallback={
             <>

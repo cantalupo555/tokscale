@@ -94,10 +94,38 @@ export interface TUIData {
   modelCount: number;
   chartData: ChartDataPoint[];
   topModels: ModelWithPercentage[];
+  dailyBreakdowns: Map<string, DailyModelBreakdown>;
 }
 
 export interface TUISettings {
   colorPalette: string;
+}
+
+export type LoadingPhase = 
+  | "idle"
+  | "loading-pricing"
+  | "syncing-cursor"
+  | "parsing-sources"
+  | "finalizing-report"
+  | "complete";
+
+export interface DailyModelBreakdown {
+  date: string;
+  cost: number;
+  totalTokens: number;
+  models: Array<{
+    modelId: string;
+    source: string;
+    tokens: {
+      input: number;
+      output: number;
+      cacheRead: number;
+      cacheWrite: number;
+      reasoning: number;
+    };
+    cost: number;
+    messages: number;
+  }>;
 }
 
 export interface TUIOptions {

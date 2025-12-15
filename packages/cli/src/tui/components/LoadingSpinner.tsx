@@ -1,4 +1,5 @@
 import { createSignal, onMount, onCleanup } from "solid-js";
+import type { LoadingPhase } from "../types/index.js";
 
 const COLORS = ["#00FFFF", "#00D7D7", "#00AFAF", "#008787", "#666666", "#666666", "#666666", "#666666"];
 const WIDTH = 8;
@@ -28,8 +29,18 @@ function getScannerState(frame: number): SpinnerState {
   return { position: 0, forward: false };
 }
 
+const PHASE_MESSAGES: Record<LoadingPhase, string> = {
+  "idle": "Initializing...",
+  "loading-pricing": "Loading pricing data...",
+  "syncing-cursor": "Syncing Cursor data...",
+  "parsing-sources": "Parsing session files...",
+  "finalizing-report": "Finalizing report...",
+  "complete": "Complete",
+};
+
 interface LoadingSpinnerProps {
   message?: string;
+  phase?: LoadingPhase;
 }
 
 export function LoadingSpinner(props: LoadingSpinnerProps) {
@@ -43,6 +54,7 @@ export function LoadingSpinner(props: LoadingSpinnerProps) {
   });
 
   const state = () => getScannerState(frame());
+  const displayMessage = () => props.message || (props.phase ? PHASE_MESSAGES[props.phase] : "Loading data...");
 
   const getCharProps = (index: number) => {
     const { position, forward } = state();
@@ -63,7 +75,7 @@ export function LoadingSpinner(props: LoadingSpinnerProps) {
         })}
       </box>
       <box marginTop={1}>
-        <text dim>{props.message || "Loading data..."}</text>
+        <text dim>{displayMessage()}</text>
       </box>
     </box>
   );
