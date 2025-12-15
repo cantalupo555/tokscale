@@ -6,6 +6,7 @@
 
 import type { UnifiedMessage, TokenBreakdown, SourceType } from "./types.js";
 import type { PricingEntry } from "../pricing.js";
+import { normalizeModelName, isWordBoundaryMatch } from "../pricing.js";
 import type { TokenContributionData } from "../graph-types.js";
 
 export interface ModelUsage {
@@ -56,15 +57,53 @@ interface PricingInfo {
   cacheCreationInputTokenCost?: number;
 }
 
-/**
- * Build a pricing lookup map from pricing entries
- */
-function buildPricingMap(pricing: PricingEntry[]): Map<string, PricingInfo> {
+interface PricingLookup {
+  get(modelId: string): PricingInfo | undefined;
+}
+
+function buildPricingLookup(pricing: PricingEntry[]): PricingLookup {
   const map = new Map<string, PricingInfo>();
   for (const entry of pricing) {
     map.set(entry.modelId, entry.pricing);
   }
-  return map;
+
+  const sortedKeys = [...map.keys()].sort();
+  const prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+
+  return {
+    get(modelId: string): PricingInfo | undefined {
+      if (map.has(modelId)) return map.get(modelId);
+
+      for (const prefix of prefixes) {
+        if (map.has(prefix + modelId)) return map.get(prefix + modelId);
+      }
+
+      const normalized = normalizeModelName(modelId);
+      if (normalized) {
+        if (map.has(normalized)) return map.get(normalized);
+        for (const prefix of prefixes) {
+          if (map.has(prefix + normalized)) return map.get(prefix + normalized);
+        }
+      }
+
+      const lowerModelId = modelId.toLowerCase();
+      const lowerNormalized = normalized?.toLowerCase();
+
+      for (const key of sortedKeys) {
+        const lowerKey = key.toLowerCase();
+        if (isWordBoundaryMatch(lowerKey, lowerModelId)) return map.get(key);
+        if (lowerNormalized && isWordBoundaryMatch(lowerKey, lowerNormalized)) return map.get(key);
+      }
+
+      for (const key of sortedKeys) {
+        const lowerKey = key.toLowerCase();
+        if (isWordBoundaryMatch(lowerModelId, lowerKey)) return map.get(key);
+        if (lowerNormalized && isWordBoundaryMatch(lowerNormalized, lowerKey)) return map.get(key);
+      }
+
+      return undefined;
+    },
+  };
 }
 
 /**
@@ -95,7 +134,7 @@ export function generateModelReport(
   pricing: PricingEntry[],
   startTime: number
 ): ModelReport {
-  const pricingMap = buildPricingMap(pricing);
+  const pricingMap = buildPricingLookup(pricing);
 
   // Aggregate by source + model
   const aggregated = new Map<string, ModelUsage>();
@@ -165,7 +204,7 @@ export function generateMonthlyReport(
   pricing: PricingEntry[],
   startTime: number
 ): MonthlyReport {
-  const pricingMap = buildPricingMap(pricing);
+  const pricingMap = buildPricingLookup(pricing);
 
   // Aggregate by month
   const aggregated = new Map<
@@ -240,7 +279,7 @@ export function generateGraphData(
   pricing: PricingEntry[],
   startTime: number
 ): TokenContributionData {
-  const pricingMap = buildPricingMap(pricing);
+  const pricingMap = buildPricingLookup(pricing);
 
   // Group messages by date
   const byDate = new Map<

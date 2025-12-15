@@ -11,7 +11,7 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function normalizeCursorModelName(modelId: string): string | null {
+export function normalizeModelName(modelId: string): string | null {
   const lower = modelId.toLowerCase();
 
   if (lower.includes("opus")) {
@@ -56,7 +56,7 @@ function normalizeCursorModelName(modelId: string): string | null {
   return null;
 }
 
-function isWordBoundaryMatch(haystack: string, needle: string): boolean {
+export function isWordBoundaryMatch(haystack: string, needle: string): boolean {
   const pos = haystack.indexOf(needle);
   if (pos === -1) return false;
 
@@ -233,7 +233,7 @@ export class PricingFetcher {
       }
     }
 
-    const normalized = normalizeCursorModelName(modelID);
+    const normalized = normalizeModelName(modelID);
     if (normalized) {
       if (this.pricingData[normalized]) {
         return this.pricingData[normalized];
