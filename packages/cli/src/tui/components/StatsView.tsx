@@ -45,7 +45,8 @@ export function StatsView(props: StatsViewProps) {
   
   const selectedBreakdown = createMemo(() => {
     if (!props.selectedDate) return null;
-    if (!props.data.dailyBreakdowns || !(props.data.dailyBreakdowns instanceof Map)) return null;
+    if (!props.data.dailyBreakdowns) return null;
+    if (!(props.data.dailyBreakdowns instanceof Map)) return null;
     return props.data.dailyBreakdowns.get(props.selectedDate) || null;
   });
   
@@ -99,9 +100,24 @@ export function StatsView(props: StatsViewProps) {
     return { char: level === 0 ? "· " : "██", color: baseColor, bg: undefined };
   };
 
-  const handleCellClick = (date: string | null) => {
-    if (!date || !props.onDateSelect) return;
-    props.onDateSelect(prev => prev === date ? null : date);
+  const handleGridClick = (event: { x: number; y: number }) => {
+    if (!props.onDateSelect) return;
+    
+    const labelWidth = dayLabelWidth();
+    const col = Math.floor((event.x - labelWidth) / cellWidth);
+    const row = event.y;
+    
+    if (col < 0 || row < 0 || row >= 7) return;
+    
+    const rowData = grid()[row];
+    if (!rowData || col >= rowData.length) return;
+    
+    const cell = rowData[col];
+    if (!cell?.date) return;
+    
+    const currentSelected = props.selectedDate;
+    const newValue = currentSelected === cell.date ? null : cell.date;
+    props.onDateSelect(newValue);
   };
 
   return (
@@ -112,23 +128,23 @@ export function StatsView(props: StatsViewProps) {
           <text dim>{monthLabelRow()}</text>
         </box>
 
-        <For each={DAYS}>
-          {(day, dayIndex) => (
-            <box flexDirection="row">
-              <text dim>{isNarrowTerminal() ? "  " : day.padStart(3) + " "}</text>
-              <For each={grid()[dayIndex()] || []}>
-                {(cell) => {
-                  const style = getCellStyle(cell.date, cell.level);
-                  return (
-                    <box onMouseDown={() => handleCellClick(cell.date)}>
+        <box onMouseDown={handleGridClick}>
+          <For each={DAYS}>
+            {(day, dayIndex) => (
+              <box flexDirection="row">
+                <text dim>{isNarrowTerminal() ? "  " : day.padStart(3) + " "}</text>
+                <For each={grid()[dayIndex()] || []}>
+                  {(cell) => {
+                    const style = getCellStyle(cell.date, cell.level);
+                    return (
                       <text fg={style.color} bg={style.bg}>{style.char}</text>
-                    </box>
-                  );
-                }}
-              </For>
-            </box>
-          )}
-        </For>
+                    );
+                  }}
+                </For>
+              </box>
+            )}
+          </For>
+        </box>
       </box>
 
       <box flexDirection="row" gap={2} marginTop={1}>
@@ -221,6 +237,7 @@ interface DateBreakdownPanelProps {
 
 function DateBreakdownPanel(props: DateBreakdownPanelProps) {
   const groupedBySource = createMemo(() => {
+    if (!props.breakdown?.models) return new Map();
     const groups = new Map<string, typeof props.breakdown.models>();
     for (const model of props.breakdown.models) {
       const existing = groups.get(model.source) || [];
