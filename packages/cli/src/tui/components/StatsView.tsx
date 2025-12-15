@@ -1,4 +1,4 @@
-import { For, Show, createMemo, type Setter } from "solid-js";
+import { For, Show, createMemo, createSignal, type Setter } from "solid-js";
 import type { TUIData } from "../hooks/useData.js";
 import type { ColorPaletteName } from "../config/themes.js";
 import type { DailyModelBreakdown } from "../types/index.js";
@@ -42,6 +42,10 @@ export function StatsView(props: StatsViewProps) {
   const isNarrowTerminal = () => isNarrow(props.width);
   const grid = () => props.data.contributionGrid;
   const cellWidth = 2;
+  
+  const [clickedCell, setClickedCell] = createSignal<string | null>(null);
+  // DEBUG: keep this for debugging mouse click coordinate mapping
+  const [debugInfo, setDebugInfo] = createSignal<string>("No click yet");
   
   const selectedBreakdown = createMemo(() => {
     if (!props.selectedDate) return null;
@@ -91,7 +95,7 @@ export function StatsView(props: StatsViewProps) {
   const dayLabelWidth = () => isNarrowTerminal() ? 2 : 4;
 
   const getCellStyle = (cellDate: string | null, level: number) => {
-    const isSelected = cellDate && props.selectedDate === cellDate;
+    const isSelected = cellDate && (clickedCell() === cellDate || props.selectedDate === cellDate);
     const baseColor = level === 0 ? "#666666" : getGradeColor(palette(), level as 0 | 1 | 2 | 3 | 4);
     
     if (isSelected) {
@@ -100,25 +104,7 @@ export function StatsView(props: StatsViewProps) {
     return { char: level === 0 ? "· " : "██", color: baseColor, bg: undefined };
   };
 
-  const handleGridClick = (event: { x: number; y: number }) => {
-    if (!props.onDateSelect) return;
-    
-    const labelWidth = dayLabelWidth();
-    const col = Math.floor((event.x - labelWidth) / cellWidth);
-    const row = event.y;
-    
-    if (col < 0 || row < 0 || row >= 7) return;
-    
-    const rowData = grid()[row];
-    if (!rowData || col >= rowData.length) return;
-    
-    const cell = rowData[col];
-    if (!cell?.date) return;
-    
-    const currentSelected = props.selectedDate;
-    const newValue = currentSelected === cell.date ? null : cell.date;
-    props.onDateSelect(newValue);
-  };
+
 
   return (
     <box flexDirection="column" gap={1}>
@@ -128,7 +114,20 @@ export function StatsView(props: StatsViewProps) {
           <text dim>{monthLabelRow()}</text>
         </box>
 
-        <box onMouseDown={handleGridClick}>
+        {/* DEBUG: onMouseDown handler for grid click - keep for coordinate debugging */}
+        <box onMouseDown={(e: { x: number; y: number }) => {
+          const labelW = dayLabelWidth();
+          const col = Math.floor((e.x - labelW) / cellWidth);
+          const row = e.y;
+          setDebugInfo(`x=${e.x} y=${e.y} labelW=${labelW} cellW=${cellWidth} col=${col} row=${row}`);
+          if (col >= 0 && row >= 0 && row < 7) {
+            const rowData = grid()[row];
+            if (rowData && col < rowData.length && rowData[col]?.date) {
+              setClickedCell(rowData[col].date);
+              setDebugInfo(`x=${e.x} y=${e.y} col=${col} row=${row} date=${rowData[col].date}`);
+            }
+          }
+        }}>
           <For each={DAYS}>
             {(day, dayIndex) => (
               <box flexDirection="row">
@@ -145,6 +144,11 @@ export function StatsView(props: StatsViewProps) {
             )}
           </For>
         </box>
+      </box>
+
+      {/* DEBUG: display click coordinates - keep for debugging */}
+      <box flexDirection="row" gap={2}>
+        <text fg="yellow">{`DEBUG: ${debugInfo()} | selected: ${clickedCell() || 'none'}`}</text>
       </box>
 
       <box flexDirection="row" gap={2} marginTop={1}>
