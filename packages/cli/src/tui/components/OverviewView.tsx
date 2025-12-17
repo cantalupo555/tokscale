@@ -1,9 +1,9 @@
 import { Show, For, createMemo, type Accessor } from "solid-js";
 import { BarChart } from "./BarChart.js";
 import { Legend } from "./Legend.js";
+import { ModelRow } from "./ModelRow.js";
 import type { TUIData, SortType } from "../hooks/useData.js";
-import { formatCost, formatTokens, formatTokensCompact } from "../utils/format.js";
-import { getModelColor } from "../utils/colors.js";
+import { formatCost } from "../utils/format.js";
 import { isNarrow, isVeryNarrow } from "../utils/responsive.js";
 
 interface OverviewViewProps {
@@ -29,10 +29,6 @@ export function OverviewView(props: OverviewViewProps) {
   const topModelsForLegend = () => props.data.topModels.slice(0, legendModelLimit()).map(m => m.modelId);
 
   const maxModelNameWidth = () => isVeryNarrowTerminal() ? 20 : isNarrowTerminal() ? 30 : 50;
-  const truncateModelName = (name: string) => {
-    const max = maxModelNameWidth();
-    return name.length > max ? name.slice(0, max - 1) + "…" : name;
-  };
 
   const sortedModels = createMemo(() => {
     const models = [...props.data.topModels];
@@ -83,36 +79,21 @@ export function OverviewView(props: OverviewViewProps) {
           <For each={visibleModels()}>
             {(model, i) => {
               const isActive = createMemo(() => i() === props.selectedIndex());
-              const bgColor = createMemo(() => isActive() ? "blue" : undefined);
-              const color = () => getModelColor(model.modelId);
               
               return (
-                <box flexDirection="column">
-                  <box flexDirection="row" backgroundColor={bgColor()}>
-                    <text fg={color()} bg={bgColor()}>●</text>
-                    <text fg={isActive() ? "white" : undefined} bg={bgColor()}>{` ${truncateModelName(model.modelId)} `}</text>
-                    <text dim bg={bgColor()}>{`(${getPercentage(model).toFixed(1)}%)`}</text>
-                  </box>
-                  <box flexDirection="row">
-                    <Show when={isVeryNarrowTerminal()} fallback={
-                      <>
-                        <text fg="#666666">{"  In: "}</text><text fg="#AAAAAA">{formatTokens(model.inputTokens)}</text>
-                        <text fg="#666666">{" · Out: "}</text><text fg="#AAAAAA">{formatTokens(model.outputTokens)}</text>
-                        <text fg="#666666">{" · CR: "}</text><text fg="#AAAAAA">{formatTokens(model.cacheReadTokens)}</text>
-                        <text fg="#666666">{" · CW: "}</text><text fg="#AAAAAA">{formatTokens(model.cacheWriteTokens)}</text>
-                      </>
-                    }>
-                      <text fg="#666666">{"  "}</text>
-                      <text fg="#AAAAAA">{formatTokensCompact(model.inputTokens)}</text>
-                      <text fg="#666666">{"/"}</text>
-                      <text fg="#AAAAAA">{formatTokensCompact(model.outputTokens)}</text>
-                      <text fg="#666666">{"/"}</text>
-                      <text fg="#AAAAAA">{formatTokensCompact(model.cacheReadTokens)}</text>
-                      <text fg="#666666">{"/"}</text>
-                      <text fg="#AAAAAA">{formatTokensCompact(model.cacheWriteTokens)}</text>
-                    </Show>
-                  </box>
-                </box>
+                <ModelRow
+                  modelId={model.modelId}
+                  tokens={{
+                    input: model.inputTokens,
+                    output: model.outputTokens,
+                    cacheRead: model.cacheReadTokens,
+                    cacheWrite: model.cacheWriteTokens,
+                  }}
+                  percentage={getPercentage(model)}
+                  isActive={isActive()}
+                  compact={isVeryNarrowTerminal()}
+                  maxNameWidth={maxModelNameWidth()}
+                />
               );
             }}
           </For>

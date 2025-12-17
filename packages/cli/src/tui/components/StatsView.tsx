@@ -6,6 +6,7 @@ import { getPalette, getGradeColor } from "../config/themes.js";
 import { getModelColor } from "../utils/colors.js";
 import { formatTokens, formatCost } from "../utils/format.js";
 import { isNarrow } from "../utils/responsive.js";
+import { ModelRow } from "./ModelRow.js";
 
 interface StatsViewProps {
   data: TUIData;
@@ -290,30 +291,17 @@ function DateBreakdownPanel(props: DateBreakdownPanelProps) {
               </box>
               <For each={models}>
                 {(model) => (
-                  <box flexDirection={props.isNarrow ? "column" : "row"} marginLeft={2} gap={props.isNarrow ? 0 : 2}>
-                    <box flexDirection="row" gap={1}>
-                      <text fg={getModelColor(model.modelId)}>{model.modelId}</text>
-                      <text fg="green">{formatCost(model.cost)}</text>
-                    </box>
-                    <box flexDirection="row" gap={1}>
-                      <Show when={model.tokens.input > 0}>
-                        <text dim>In:</text>
-                        <text fg="cyan">{formatTokens(model.tokens.input)}</text>
-                      </Show>
-                      <Show when={model.tokens.output > 0}>
-                        <text dim>Out:</text>
-                        <text fg="cyan">{formatTokens(model.tokens.output)}</text>
-                      </Show>
-                      <Show when={model.tokens.cacheRead > 0}>
-                        <text dim>CacheR:</text>
-                        <text fg="cyan">{formatTokens(model.tokens.cacheRead)}</text>
-                      </Show>
-                      <Show when={model.tokens.cacheWrite > 0}>
-                        <text dim>CacheW:</text>
-                        <text fg="cyan">{formatTokens(model.tokens.cacheWrite)}</text>
-                      </Show>
-                    </box>
-                  </box>
+                  <ModelRow
+                    modelId={model.modelId}
+                    tokens={{
+                      input: model.tokens.input,
+                      output: model.tokens.output,
+                      cacheRead: model.tokens.cacheRead,
+                      cacheWrite: model.tokens.cacheWrite,
+                    }}
+                    compact={props.isNarrow}
+                    indent={2}
+                  />
                 )}
               </For>
             </box>
