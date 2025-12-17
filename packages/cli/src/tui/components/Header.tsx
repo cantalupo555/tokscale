@@ -1,6 +1,14 @@
 import { Show } from "solid-js";
+import { exec } from "child_process";
 import type { TabType } from "../types/index.js";
 import { isNarrow, isVeryNarrow } from "../utils/responsive.js";
+
+const REPO_URL = "https://github.com/junhoyeo/tokscale";
+
+function openUrl(url: string) {
+  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  exec(`${cmd} ${url}`);
+}
 
 interface HeaderProps {
   activeTab: TabType;
@@ -24,7 +32,10 @@ export function Header(props: HeaderProps) {
         <Tab name={getTabName("Stats", "Sta")} tabId="stats" active={props.activeTab === "stats"} onClick={props.onTabClick} />
       </box>
       <Show when={!isNarrowTerminal()}>
-        <text fg="cyan" bold>Token Usage Tracker</text>
+        <box flexDirection="row" onMouseDown={() => openUrl(REPO_URL)}>
+          <text fg="cyan" bold>tokscale</text>
+          <text fg="#666666">{" | GitHub"}</text>
+        </box>
       </Show>
     </box>
   );
