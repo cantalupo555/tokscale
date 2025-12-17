@@ -36,7 +36,7 @@ export function ThemeToggle({ theme, onThemeChange, mounted }: ThemeToggleProps)
         style={{
           width: CONTAINER_WIDTH,
           height: CONTAINER_HEIGHT,
-          background: "linear-gradient(to bottom, #212124, #1F1F20)",
+          backgroundColor: "var(--color-btn-bg)",
         }}
         aria-hidden="true"
       />
@@ -52,9 +52,9 @@ export function ThemeToggle({ theme, onThemeChange, mounted }: ThemeToggleProps)
         width: CONTAINER_WIDTH,
         height: CONTAINER_HEIGHT,
         padding: SIZES.containerPadding,
-        background: "linear-gradient(to bottom, #212124, #1F1F20)",
-        boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.05), 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
+        backgroundColor: "var(--color-btn-bg)",
+        boxShadow: "inset 0 1px 0 0 var(--color-border-subtle), 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+        border: "1px solid var(--color-border-subtle)",
       }}
     >
       <motion.div
@@ -63,8 +63,8 @@ export function ThemeToggle({ theme, onThemeChange, mounted }: ThemeToggleProps)
           top: SIZES.containerPadding,
           bottom: SIZES.containerPadding,
           width: SIZES.buttonSize,
-          backgroundColor: "#1F1F20",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(255, 255, 255, 0.1)",
+          backgroundColor: "var(--color-bg-elevated)",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px var(--color-border-subtle)",
         }}
         initial={false}
         animate={{ x: indicatorX }}
@@ -96,7 +96,7 @@ export function ThemeToggle({ theme, onThemeChange, mounted }: ThemeToggleProps)
             style={{
               width: SIZES.buttonSize,
               height: SIZES.buttonSize,
-              color: isActive ? "#FFFFFF" : "#696969",
+              color: isActive ? "var(--color-fg-default)" : "var(--color-fg-muted)",
             }}
           >
             <Icon size={SIZES.iconSize} strokeWidth={isActive ? 2.5 : 2} className="transition-all duration-200" />
