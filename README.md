@@ -192,7 +192,7 @@ tokscale submit --dry-run
 tokscale logout
 ```
 
-### Example Output
+### Example Output (`--light` version)
 
 ```
   Token Usage Report by Model
@@ -646,10 +646,6 @@ Contributions are welcome! Please follow these steps:
 - Update documentation as needed
 - Keep commits focused and atomic
 
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
 ## Acknowledgments
 
 - [ccusage](https://github.com/ryoppippi/ccusage), [viberank](https://github.com/sculptdotfun/viberank), and [Isometric Contributions](https://github.com/jasonlong/isometric-contributions) for inspiration
@@ -658,3 +654,17 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [LiteLLM](https://github.com/BerriAI/litellm) for pricing data
 - [napi-rs](https://napi.rs/) for Rust/Node.js bindings
 - [github-contributions-canvas](https://github.com/sallar/github-contributions-canvas) for 2D graph reference
+
+## License
+
+<p align="center">
+  <a href="https://github.com/junhoyeo">
+    <img src=".github/assets/labtocat-on-spaceship.png" width="540">
+  </a>
+</p>
+
+<p align="center">
+  <strong>MIT © <a href="https://github.com/junhoyeo">Junho Yeo</a></strong>
+</p>
+
+If you find this project intriguing, **please consider starring it ⭐** or [follow me on GitHub](https://github.com/junhoyeo) and join the ride (1.1k+ already aboard). I code around the clock and ship mind-blowing things on a regular basis—your support won't go to waste.
