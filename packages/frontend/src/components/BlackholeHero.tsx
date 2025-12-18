@@ -79,13 +79,20 @@ export function BlackholeHero() {
           </button>
           
           <div 
-            className="flex items-center justify-center relative overflow-hidden h-[36px] bg-[#1A1B1C] rounded-lg shrink-0"
+            className="flex items-center relative overflow-hidden h-[36px] bg-[#1A1B1C] rounded-lg shrink-0 px-3"
             style={{ width: "190px" }}
           >
             <span className="text-base font-bold text-white leading-none tracking-tight font-mono z-10">
               npx tokscale
             </span>
-            <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-[#017FFF]/15 to-transparent pointer-events-none" />
+            <div 
+              className="ml-[10px] shrink-0"
+              style={{
+                width: "25px",
+                height: "36px",
+                background: "linear-gradient(270deg, rgba(26, 27, 28, 0) 0%, rgba(1, 127, 255, 0.14) 50%, rgba(26, 27, 28, 0) 100%)"
+              }}
+            />
           </div>
         </div>
 

@@ -65,7 +65,7 @@ export default function LeaderboardPage() {
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "var(--color-bg-default)" }}>
       <Navigation />
 
-      <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-6 pb-10 w-full">
         <BlackholeHero />
 
         <div className="mb-10">
