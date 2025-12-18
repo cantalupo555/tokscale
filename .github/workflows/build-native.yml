@@ -1,13 +1,11 @@
-name: Build and Publish Core
+name: Build Native (Test Only)
 
-# DISABLED - Re-enable after migration to junhoyeo/tokscale
-# on:
-#   push:
-#     branches: [main]
-#     paths:
-#       - "packages/core/package.json"
-#   workflow_dispatch:
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "packages/core/**"
+      - "!packages/core/package.json"
 
 env:
   DEBUG: napi:*
@@ -15,31 +13,8 @@ env:
   MACOSX_DEPLOYMENT_TARGET: "10.13"
 
 jobs:
-  check-version:
-    name: Check Version Change
-    runs-on: ubuntu-latest
-    outputs:
-      version_changed: ${{ steps.check.outputs.version_changed }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check if version changed
-        id: check
-        run: |
-          if git diff HEAD~1 HEAD -- packages/core/package.json | grep -E '^[+-]\s*"version"'; then
-            echo "Version changed"
-            echo "version_changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "Version not changed"
-            echo "version_changed=false" >> $GITHUB_OUTPUT
-          fi
-
   build:
     name: Build - ${{ matrix.settings.target }}
-    needs: check-version
-    if: needs.check-version.outputs.version_changed == 'true'
     runs-on: ${{ matrix.settings.host }}
     strategy:
       fail-fast: false
@@ -72,11 +47,21 @@ jobs:
             build: |
               cd packages/core
               bun run build:platform --target aarch64-unknown-linux-gnu --use-napi-cross
+          - host: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            build: |
+              cd packages/core
+              bun run build:platform --target aarch64-unknown-linux-musl -x
           - host: windows-latest
             target: x86_64-pc-windows-msvc
             build: |
               cd packages/core
               bun run build:platform
+          - host: windows-latest
+            target: aarch64-pc-windows-msvc
+            build: |
+              cd packages/core
+              bun run build:platform --target aarch64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v4
@@ -136,80 +121,3 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: packages/core/*.node
           if-no-files-found: error
-
-  publish-core:
-    name: Publish Core
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org/"
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-        working-directory: packages/core
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: packages/core/artifacts
-
-      - name: Move artifacts
-        working-directory: packages/core
-        run: |
-          for dir in artifacts/bindings-*/; do
-            cp "$dir"*.node . 2>/dev/null || true
-          done
-          ls -la *.node
-
-      - name: Publish Core
-        working-directory: packages/core
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-  publish-cli:
-    name: Publish CLI
-    needs: publish-core
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: "https://registry.npmjs.org/"
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build CLI
-        run: bun run --cwd packages/cli build
-
-      - name: Publish CLI
-        working-directory: packages/cli
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -2,8 +2,11 @@ name: Publish to npm
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    paths:
+      - "packages/core/package.json"
+      - "packages/cli/package.json"
+      - "packages/tokscale/package.json"
   workflow_dispatch:
 
 env:
@@ -12,8 +15,50 @@ env:
   MACOSX_DEPLOYMENT_TARGET: "10.13"
 
 jobs:
+  check-versions:
+    name: Check version changes
+    runs-on: ubuntu-latest
+    outputs:
+      core-changed: ${{ steps.check.outputs.core-changed }}
+      cli-changed: ${{ steps.check.outputs.cli-changed }}
+      alias-changed: ${{ steps.check.outputs.alias-changed }}
+      core-version: ${{ steps.check.outputs.core-version }}
+      cli-version: ${{ steps.check.outputs.cli-version }}
+      alias-version: ${{ steps.check.outputs.alias-version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check which packages changed
+        id: check
+        run: |
+          check_version_change() {
+            local pkg_path=$1
+            local output_name=$2
+            
+            local current_version=$(jq -r '.version' "$pkg_path")
+            local prev_version=$(git show HEAD~1:"$pkg_path" 2>/dev/null | jq -r '.version' 2>/dev/null || echo "")
+            
+            echo "${output_name}-version=$current_version" >> $GITHUB_OUTPUT
+            
+            if [ "$current_version" != "$prev_version" ]; then
+              echo "${output_name}-changed=true" >> $GITHUB_OUTPUT
+              echo "✅ $pkg_path: $prev_version → $current_version"
+            else
+              echo "${output_name}-changed=false" >> $GITHUB_OUTPUT
+              echo "⏭️ $pkg_path: no version change ($current_version)"
+            fi
+          }
+          
+          check_version_change "packages/core/package.json" "core"
+          check_version_change "packages/cli/package.json" "cli"
+          check_version_change "packages/tokscale/package.json" "alias"
+
   build:
     name: Build - ${{ matrix.settings.target }}
+    needs: check-versions
+    if: needs.check-versions.outputs.core-changed == 'true'
     runs-on: ${{ matrix.settings.host }}
     strategy:
       fail-fast: false
@@ -123,7 +168,8 @@ jobs:
 
   publish-core:
     name: Publish @tokscale/core
-    needs: build
+    needs: [check-versions, build]
+    if: needs.check-versions.outputs.core-changed == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -165,7 +211,11 @@ jobs:
 
   publish-cli:
     name: Publish @tokscale/cli
-    needs: publish-core
+    needs: [check-versions, publish-core]
+    if: |
+      always() &&
+      needs.check-versions.outputs.cli-changed == 'true' &&
+      (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
@@ -196,7 +246,11 @@ jobs:
 
   publish-alias:
     name: Publish tokscale (alias)
-    needs: publish-cli
+    needs: [check-versions, publish-cli]
+    if: |
+      always() &&
+      needs.check-versions.outputs.alias-changed == 'true' &&
+      (needs.publish-cli.result == 'success' || needs.publish-cli.result == 'skipped')
     runs-on: ubuntu-latest
 
     steps:
