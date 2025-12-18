@@ -10,7 +10,7 @@ export function Footer() {
               src="/assets/footer-logo-icon.png"
               alt="Tokscale Icon"
               fill
-              className="object-contain"
+              className="object-contain animate-[spin_10s_linear_infinite]"
             />
           </div>
 
