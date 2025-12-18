@@ -85,9 +85,35 @@ export function BlackholeHero() {
             className="flex items-center relative overflow-hidden h-[36px] bg-[#1A1B1C] rounded-lg shrink-0 px-3"
             style={{ width: "190px" }}
           >
-            <span className="text-base font-bold text-white leading-none tracking-tight font-mono z-10">
-              npx tokscale
-            </span>
+            <div className="z-10 flex items-center">
+              <span
+                style={{
+                  color: "#FFF",
+                  fontFamily: "Inconsolata, monospace",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  lineHeight: "94%",
+                  letterSpacing: "-0.8px",
+                }}
+              >
+                npx{" "}
+              </span>
+              <span
+                style={{
+                  background: "linear-gradient(90deg, #0CF 0%, #0073FF 100%)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  fontFamily: "Inconsolata, monospace",
+                  fontSize: "16px",
+                  fontWeight: 500,
+                  lineHeight: "94%",
+                  letterSpacing: "-0.8px",
+                }}
+              >
+                tokscale
+              </span>
+            </div>
             <div 
               className="ml-[10px] shrink-0"
               style={{
