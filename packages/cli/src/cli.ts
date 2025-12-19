@@ -7,6 +7,9 @@
  */
 
 import { Command } from "commander";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
 import pc from "picocolors";
 import { login, logout, whoami } from "./auth.js";
 import { submit } from "./submit.js";
@@ -194,7 +197,7 @@ async function main() {
   program
     .name("tokscale")
     .description("Token Usage Leaderboard CLI - Track AI coding costs across OpenCode, Claude Code, Codex, Gemini, and Cursor")
-    .version("1.0.2");
+    .version(pkg.version);
 
   program
     .command("monthly")

@@ -1,6 +1,6 @@
 {
   "name": "@tokscale/cli",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A high-performance CLI tool and visualization dashboard for tracking AI coding assistant token usage and costs across multiple platforms.",
   "license": "MIT",
   "type": "module",
@@ -10,7 +10,7 @@
   },
   "files": [
     "dist/**/*",
-    "src/tui/**/*"
+    "src/**/*"
   ],
   "publishConfig": {
     "registry": "https://registry.npmjs.org/",
@@ -31,7 +31,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@tokscale/core": "1.0.6",
+    "@tokscale/core": "1.0.7",
     "@opentui/core": "0.1.60",
     "@opentui/react": "^0.1.60",
     "@opentui/solid": "^0.1.60",
