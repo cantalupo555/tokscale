@@ -58,7 +58,11 @@ async function tryLoadTUI(): Promise<LaunchTUIFunction | null> {
     const tuiModule = await import("./tui/index.js");
     cachedTUILoader = tuiModule.launchTUI;
     return cachedTUILoader;
-  } catch {
+  } catch (error) {
+    // Log error for debugging (only in verbose mode or when DEBUG is set)
+    if (process.env.DEBUG) {
+      console.error("TUI load error:", error);
+    }
     return null;
   }
 }
