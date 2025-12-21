@@ -1,4 +1,5 @@
 import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
+import { Resvg } from "@resvg/resvg-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -33,21 +34,22 @@ export interface WrappedOptions {
   sources?: SourceType[];
 }
 
-const IMAGE_WIDTH = 1200;
-const IMAGE_HEIGHT = 1200;
-const PADDING = 60;
+const SCALE = 2;
+const IMAGE_WIDTH = 1200 * SCALE;
+const IMAGE_HEIGHT = 1200 * SCALE;
+const PADDING = 56 * SCALE;
 
 const COLORS = {
-  background: "#1a1a1a",
+  background: "#10121C",
   textPrimary: "#ffffff",
   textSecondary: "#888888",
   textMuted: "#555555",
-  accent: "#58a6ff",
-  grade0: "#2d2d2d",
-  grade1: "#58a6ff44",
-  grade2: "#58a6ff88",
-  grade3: "#58a6ffcc",
-  grade4: "#58a6ff",
+  accent: "#00B2FF",
+  grade0: "#141A25",
+  grade1: "#00B2FF44",
+  grade2: "#00B2FF88",
+  grade3: "#00B2FFCC",
+  grade4: "#00B2FF",
 };
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
@@ -68,7 +70,8 @@ const CLIENT_LOGO_URLS: Record<string, string> = {
   "Cursor IDE": `${ASSETS_BASE_URL}/client-cursor.jpg`,
 };
 
-const TOKSCALE_LOGO_URL = `${ASSETS_BASE_URL}/footer-logo-icon.png`;
+const TOKSCALE_LOGO_SVG_URL = "https://tokscale.ai/tokscale-logo.svg";
+const TOKSCALE_LOGO_PNG_SIZE = 400;
 
 function getImageCacheDir(): string {
   return path.join(os.homedir(), ".cache", "tokscale", "images");
@@ -91,6 +94,29 @@ async function fetchAndCacheImage(url: string, filename: string): Promise<string
     if (!response.ok) throw new Error(`Failed to fetch ${url}`);
     const buffer = await response.arrayBuffer();
     fs.writeFileSync(cachedPath, Buffer.from(buffer));
+  }
+  
+  return cachedPath;
+}
+
+async function fetchSvgAndConvertToPng(svgUrl: string, filename: string, size: number): Promise<string> {
+  const cacheDir = getImageCacheDir();
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+  
+  const cachedPath = path.join(cacheDir, filename);
+  
+  if (!fs.existsSync(cachedPath)) {
+    const response = await fetch(svgUrl);
+    if (!response.ok) throw new Error(`Failed to fetch ${svgUrl}`);
+    const svgText = await response.text();
+    
+    const resvg = new Resvg(svgText, {
+      fitTo: { mode: "width", value: size },
+    });
+    const pngData = resvg.render();
+    fs.writeFileSync(cachedPath, pngData.asPng());
   }
   
   return cachedPath;
@@ -434,44 +460,39 @@ function drawContributionGraph(
 ) {
   const year = parseInt(data.year);
   const startDate = new Date(year, 0, 1);
-  while (startDate.getDay() !== 0) {
-    startDate.setDate(startDate.getDate() - 1);
-  }
-
   const endDate = new Date(year, 11, 31);
-  while (endDate.getDay() !== 6) {
-    endDate.setDate(endDate.getDate() + 1);
-  }
 
   const contribMap = new Map(data.contributions.map(c => [c.date, c.level]));
 
+  const DAYS_PER_ROW = 14;
   const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const totalWeeks = Math.ceil(totalDays / 7);
+  const totalRows = Math.ceil(totalDays / DAYS_PER_ROW);
   
   const cellSize = Math.min(
-    Math.floor((height - 20) / totalWeeks),
-    Math.floor((width - 20) / 7),
-    16
+    Math.floor(height / totalRows),
+    Math.floor(width / DAYS_PER_ROW)
   );
-  const dotRadius = (cellSize - 4) / 2;
+  const dotRadius = (cellSize - 2 * SCALE) / 2;
 
-  const graphWidth = 7 * cellSize;
-  const graphHeight = totalWeeks * cellSize;
+  const graphWidth = DAYS_PER_ROW * cellSize;
+  const graphHeight = totalRows * cellSize;
   const offsetX = x + (width - graphWidth) / 2;
-  const offsetY = y + (height - graphHeight) / 2;
-
-  const currentDate = new Date(startDate);
-  let weekIndex = 0;
+  const offsetY = y;
 
   const gradeColors = [COLORS.grade0, COLORS.grade1, COLORS.grade2, COLORS.grade3, COLORS.grade4];
 
+  const currentDate = new Date(startDate);
+  let dayIndex = 0;
+
   while (currentDate <= endDate) {
-    const dayOfWeek = currentDate.getDay();
     const dateStr = currentDate.toISOString().split("T")[0];
     const level = contribMap.get(dateStr) || 0;
 
-    const centerX = offsetX + dayOfWeek * cellSize + cellSize / 2;
-    const centerY = offsetY + weekIndex * cellSize + cellSize / 2;
+    const col = dayIndex % DAYS_PER_ROW;
+    const row = Math.floor(dayIndex / DAYS_PER_ROW);
+
+    const centerX = offsetX + col * cellSize + cellSize / 2;
+    const centerY = offsetY + row * cellSize + cellSize / 2;
 
     ctx.beginPath();
     ctx.arc(centerX, centerY, dotRadius, 0, Math.PI * 2);
@@ -479,9 +500,7 @@ function drawContributionGraph(
     ctx.fill();
 
     currentDate.setDate(currentDate.getDate() + 1);
-    if (currentDate.getDay() === 0) {
-      weekIndex++;
-    }
+    dayIndex++;
   }
 }
 
@@ -493,12 +512,12 @@ function drawStat(
   value: string
 ) {
   ctx.fillStyle = COLORS.textSecondary;
-  ctx.font = "18px Figtree, sans-serif";
+  ctx.font = `${18 * SCALE}px Figtree, sans-serif`;
   ctx.fillText(label, x, y);
   
   ctx.fillStyle = COLORS.textPrimary;
-  ctx.font = "bold 36px Figtree, sans-serif";
-  ctx.fillText(value, x, y + 40);
+  ctx.font = `bold ${36 * SCALE}px Figtree, sans-serif`;
+  ctx.fillText(value, x, y + 40 * SCALE);
 }
 
 function formatDate(dateStr: string): string {
@@ -519,77 +538,83 @@ async function generateWrappedImage(data: WrappedData): Promise<Buffer> {
   const rightWidth = IMAGE_WIDTH * 0.55;
   const rightX = leftWidth;
 
-  let yPos = PADDING;
+  let yPos = PADDING + 24 * SCALE;
 
   ctx.fillStyle = COLORS.textSecondary;
-  ctx.font = "24px Figtree, sans-serif";
+  ctx.font = `${24 * SCALE}px Figtree, sans-serif`;
   ctx.fillText(`Tracking since ${formatDate(data.firstDay)}`, PADDING, yPos);
-  yPos += 60;
+  yPos += 60 * SCALE;
 
   ctx.fillStyle = COLORS.textSecondary;
-  ctx.font = "20px Figtree, sans-serif";
+  ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Total Cost", PADDING, yPos);
-  yPos += 10;
+  yPos += 20 * SCALE + 56 * SCALE;
   
   ctx.fillStyle = COLORS.textPrimary;
-  ctx.font = "bold 56px Figtree, sans-serif";
-  ctx.fillText(formatCost(data.totalCost), PADDING, yPos + 50);
-  yPos += 100;
+  ctx.font = `bold ${56 * SCALE}px Figtree, sans-serif`;
+  ctx.fillText(formatCost(data.totalCost), PADDING, yPos);
+  yPos += 50 * SCALE + 40 * SCALE;
 
   ctx.fillStyle = COLORS.textSecondary;
-  ctx.font = "20px Figtree, sans-serif";
+  ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Top Models", PADDING, yPos);
-  yPos += 40;
+  yPos += 40 * SCALE;
 
   for (let i = 0; i < data.topModels.length; i++) {
     const model = data.topModels[i];
     ctx.fillStyle = COLORS.textPrimary;
-    ctx.font = "bold 32px Figtree, sans-serif";
+    ctx.font = `bold ${32 * SCALE}px Figtree, sans-serif`;
     ctx.fillText(`${i + 1}`, PADDING, yPos);
     
-    ctx.font = "32px Figtree, sans-serif";
-    ctx.fillText(formatModelName(model.name), PADDING + 40, yPos);
-    yPos += 50;
+    ctx.font = `${32 * SCALE}px Figtree, sans-serif`;
+    ctx.fillText(formatModelName(model.name), PADDING + 40 * SCALE, yPos);
+    yPos += 50 * SCALE;
   }
-  yPos += 30;
+  yPos += 40 * SCALE;
 
   ctx.fillStyle = COLORS.textSecondary;
-  ctx.font = "20px Figtree, sans-serif";
+  ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Top Clients", PADDING, yPos);
-  yPos += 40;
+  yPos += 40 * SCALE;
 
-  const logoSize = 32;
+  const logoSize = 32 * SCALE;
   
   for (let i = 0; i < data.topClients.length; i++) {
     const client = data.topClients[i];
     ctx.fillStyle = COLORS.textPrimary;
-    ctx.font = "bold 32px Figtree, sans-serif";
+    ctx.font = `bold ${32 * SCALE}px Figtree, sans-serif`;
     ctx.fillText(`${i + 1}`, PADDING, yPos);
     
     const logoUrl = CLIENT_LOGO_URLS[client.name];
     if (logoUrl) {
       try {
-        const filename = `client-${client.name.toLowerCase().replace(/\s+/g, "-")}.png`;
+        const filename = `client-${client.name.toLowerCase().replace(/\s+/g, "-")}@2x.png`;
         const logoPath = await fetchAndCacheImage(logoUrl, filename);
         const logo = await loadImage(logoPath);
-        const logoY = yPos - logoSize + 6;
+        const logoY = yPos - logoSize + 6 * SCALE;
+        
+        const logoX = PADDING + 40 * SCALE;
+        const logoRadius = 6 * SCALE;
         
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(PADDING + 40 + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
-        ctx.closePath();
+        drawRoundedRect(ctx, logoX, logoY, logoSize, logoSize, logoRadius);
         ctx.clip();
-        ctx.drawImage(logo, PADDING + 40, logoY, logoSize, logoSize);
+        ctx.drawImage(logo, logoX, logoY, logoSize, logoSize);
         ctx.restore();
+        
+        drawRoundedRect(ctx, logoX, logoY, logoSize, logoSize, logoRadius);
+        ctx.strokeStyle = "#141A25";
+        ctx.lineWidth = 1 * SCALE;
+        ctx.stroke();
       } catch {
       }
     }
     
-    ctx.font = "32px Figtree, sans-serif";
-    ctx.fillText(client.name, PADDING + 40 + logoSize + 12, yPos);
-    yPos += 50;
+    ctx.font = `${32 * SCALE}px Figtree, sans-serif`;
+    ctx.fillText(client.name, PADDING + 40 * SCALE + logoSize + 12 * SCALE, yPos);
+    yPos += 50 * SCALE;
   }
-  yPos += 40;
+  yPos += 40 * SCALE;
 
   const statsStartY = yPos;
   const statWidth = (leftWidth - PADDING * 2) / 2;
@@ -597,38 +622,32 @@ async function generateWrappedImage(data: WrappedData): Promise<Buffer> {
   drawStat(ctx, PADDING, statsStartY, "Messages", data.totalMessages.toLocaleString());
   drawStat(ctx, PADDING + statWidth, statsStartY, "Active Days", `${data.activeDays}`);
 
-  drawStat(ctx, PADDING, statsStartY + 100, "Tokens", formatTokens(data.totalTokens));
-  drawStat(ctx, PADDING + statWidth, statsStartY + 100, "Streak", `${data.longestStreak}d`);
+  drawStat(ctx, PADDING, statsStartY + 100 * SCALE, "Tokens", formatTokens(data.totalTokens));
+  drawStat(ctx, PADDING + statWidth, statsStartY + 100 * SCALE, "Streak", `${data.longestStreak}d`);
 
+  const footerBottomY = IMAGE_HEIGHT - PADDING;
+  const tokscaleLogoHeight = 72 * SCALE;
+  
   drawContributionGraph(
     ctx,
     data,
-    rightX + 20,
+    rightX,
     PADDING,
-    rightWidth - 40,
-    IMAGE_HEIGHT - PADDING * 2 - 100
+    rightWidth - PADDING,
+    IMAGE_HEIGHT - PADDING * 2
   );
 
-  const footerY = IMAGE_HEIGHT - PADDING - 30;
-  
-  ctx.fillStyle = COLORS.textMuted;
-  ctx.font = "bold 120px Figtree, sans-serif";
-  ctx.fillText(data.year, PADDING, footerY);
-
   try {
-    const logoPath = await fetchAndCacheImage(TOKSCALE_LOGO_URL, "footer-logo-icon.png");
+    const logoPath = await fetchSvgAndConvertToPng(TOKSCALE_LOGO_SVG_URL, "tokscale-logo@2x.png", TOKSCALE_LOGO_PNG_SIZE * SCALE);
     const tokscaleLogo = await loadImage(logoPath);
-    const logoWidth = 48;
-    const logoHeight = 48;
-    const logoX = IMAGE_WIDTH - PADDING - logoWidth;
-    const logoY = footerY - logoHeight + 10;
-    ctx.drawImage(tokscaleLogo, logoX, logoY, logoWidth, logoHeight);
+    const logoWidth = (tokscaleLogo.width / tokscaleLogo.height) * tokscaleLogoHeight;
     
     ctx.fillStyle = COLORS.textSecondary;
-    ctx.font = "18px Figtree, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("github.com/junhoyeo/tokscale", IMAGE_WIDTH - PADDING, footerY + 20);
-    ctx.textAlign = "left";
+    ctx.font = `${18 * SCALE}px Figtree, sans-serif`;
+    ctx.fillText("github.com/junhoyeo/tokscale", PADDING, footerBottomY);
+    
+    const logoY = footerBottomY - 18 * SCALE - 16 * SCALE - tokscaleLogoHeight;
+    ctx.drawImage(tokscaleLogo, PADDING, logoY, logoWidth, tokscaleLogoHeight);
   } catch {
   }
 
