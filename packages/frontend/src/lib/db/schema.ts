@@ -180,6 +180,7 @@ export const submissions = pgTable(
     index("idx_submissions_total_tokens").on(table.totalTokens),
     index("idx_submissions_created_at").on(table.createdAt),
     index("idx_submissions_date_range").on(table.dateStart, table.dateEnd),
+    unique("submissions_user_id_unique").on(table.userId),
   ]
 );
 
@@ -214,17 +215,16 @@ export const dailyBreakdown = pgTable(
     sourceBreakdown: jsonb("source_breakdown").$type<
       Record<
         string,
-        | number
-        | {
-            tokens: number;
-            cost: number;
-            modelId: string;
-            input: number;
-            output: number;
-            cacheRead: number;
-            cacheWrite: number;
-            messages: number;
-          }
+        {
+          tokens: number;
+          cost: number;
+          modelId: string;
+          input: number;
+          output: number;
+          cacheRead: number;
+          cacheWrite: number;
+          messages: number;
+        }
       >
     >(),
     modelBreakdown: jsonb("model_breakdown").$type<Record<string, number>>(),
