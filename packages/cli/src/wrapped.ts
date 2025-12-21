@@ -518,7 +518,7 @@ function drawStat(
   
   ctx.fillStyle = COLORS.textPrimary;
   ctx.font = `bold ${36 * SCALE}px Figtree, sans-serif`;
-  ctx.fillText(value, x, y + 40 * SCALE);
+  ctx.fillText(value, x, y + 48 * SCALE);
 }
 
 function formatDate(dateStr: string): string {
@@ -549,7 +549,7 @@ async function generateWrappedImage(data: WrappedData, options: { short?: boolea
   ctx.fillStyle = COLORS.textSecondary;
   ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Total Tokens", PADDING, yPos);
-  yPos += 20 * SCALE + 56 * SCALE;
+  yPos += 64 * SCALE;
   
   ctx.fillStyle = COLORS.grade4;
   ctx.font = `bold ${56 * SCALE}px Figtree, sans-serif`;
@@ -562,7 +562,7 @@ async function generateWrappedImage(data: WrappedData, options: { short?: boolea
   ctx.fillStyle = COLORS.textSecondary;
   ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Top Models", PADDING, yPos);
-  yPos += 40 * SCALE;
+  yPos += 48 * SCALE;
 
   for (let i = 0; i < data.topModels.length; i++) {
     const model = data.topModels[i];
@@ -579,7 +579,7 @@ async function generateWrappedImage(data: WrappedData, options: { short?: boolea
   ctx.fillStyle = COLORS.textSecondary;
   ctx.font = `${20 * SCALE}px Figtree, sans-serif`;
   ctx.fillText("Top Clients", PADDING, yPos);
-  yPos += 40 * SCALE;
+  yPos += 48 * SCALE;
 
   const logoSize = 32 * SCALE;
   
