@@ -5,7 +5,7 @@ import ProfilePageClient from './ProfilePageClient';
 export const revalidate = 60;
 
 async function getProfileData(username: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+  const baseUrl = process.env.NEXT_PUBLIC_URL 
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
     || 'http://localhost:3000';
   
