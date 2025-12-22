@@ -426,13 +426,14 @@ export function ProfileModels({ models, modelUsage }: ProfileModelsProps) {
           <div className="text-right w-12 sm:w-16">%</div>
         </div>
 
-        <div className="divide-y" style={{ borderColor: "var(--color-border-default)" }}>
+        <div>
           {sortedUsage.map((usage, index) => (
             <div
               key={usage.model}
               className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 sm:px-6 py-3 items-center"
               style={{
                 backgroundColor: index % 2 === 1 ? "var(--color-bg-elevated)" : "transparent",
+                borderTop: index > 0 ? "1px solid var(--color-border-default)" : undefined,
               }}
             >
               <div className="flex items-center gap-2 min-w-0">
