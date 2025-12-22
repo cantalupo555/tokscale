@@ -286,7 +286,11 @@ export async function POST(request: Request) {
           for (const [sourceName, sourceData] of Object.entries(day.sourceBreakdown)) {
             allSources.add(sourceName);
             const sd = sourceData as SourceBreakdownData;
-            if (sd.modelId) {
+            if (sd.models) {
+              for (const modelId of Object.keys(sd.models)) {
+                allModels.add(modelId);
+              }
+            } else if (sd.modelId) {
               allModels.add(sd.modelId);
             }
             totalCacheRead += sd.cacheRead || 0;

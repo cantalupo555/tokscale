@@ -3,7 +3,6 @@
 import type { DailyContribution, GraphColorPalette, SourceType } from "@/lib/types";
 import { formatDateFull, formatCurrency, formatTokenCount, groupSourcesByType, sortSourcesByCost } from "@/lib/utils";
 import { SOURCE_DISPLAY_NAMES, SOURCE_COLORS } from "@/lib/constants";
-import { ProviderLogo } from "./ProviderLogo";
 import { SourceLogo } from "./SourceLogo";
 
 interface BreakdownPanelProps {
@@ -69,7 +68,20 @@ export function BreakdownPanel({ day, onClose, palette }: BreakdownPanelProps) {
             </div>
             <div className="font-medium" style={{ color: "var(--color-fg-muted)" }}>
               <span className="font-semibold" style={{ color: "var(--color-fg-default)" }}>
-                {new Set(day.sources.map((s) => s.modelId)).size} model{new Set(day.sources.map((s) => s.modelId)).size !== 1 ? "s" : ""}
+                {(() => {
+                  const allModels = new Set<string>();
+                  for (const s of day.sources) {
+                    if (s.models) {
+                      for (const modelId of Object.keys(s.models)) {
+                        allModels.add(modelId);
+                      }
+                    } else if (s.modelId) {
+                      allModels.add(s.modelId);
+                    }
+                  }
+                  const count = allModels.size;
+                  return `${count} model${count !== 1 ? "s" : ""}`;
+                })()}
               </span>
             </div>
           </div>
@@ -89,6 +101,35 @@ interface SourceSectionProps {
 function SourceSection({ sourceType, sources, totalCost, palette }: SourceSectionProps) {
   const sourceColor = SOURCE_COLORS[sourceType] || palette.grade3;
 
+  const modelEntries: Array<{ modelId: string; cost: number; messages: number; tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; reasoning: number } }> = [];
+  for (const source of sources) {
+    if (source.models && Object.keys(source.models).length > 0) {
+      for (const [modelId, data] of Object.entries(source.models)) {
+        modelEntries.push({
+          modelId,
+          cost: data.cost,
+          messages: data.messages,
+          tokens: {
+            input: data.input,
+            output: data.output,
+            cacheRead: data.cacheRead,
+            cacheWrite: data.cacheWrite,
+            reasoning: 0,
+          },
+        });
+      }
+    } else if (source.modelId) {
+      modelEntries.push({
+        modelId: source.modelId,
+        cost: source.cost,
+        messages: source.messages,
+        tokens: source.tokens,
+      });
+    }
+  }
+
+  const sortedModels = modelEntries.sort((a, b) => b.cost - a.cost);
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-3">
@@ -103,8 +144,8 @@ function SourceSection({ sourceType, sources, totalCost, palette }: SourceSectio
       </div>
 
       <div className="ml-5 space-y-3">
-        {sources.map((source, index) => (
-          <ModelRow key={`${source.modelId}-${index}`} source={source} isLast={index === sources.length - 1} palette={palette} />
+        {sortedModels.map((model, index) => (
+          <ModelRow key={`${model.modelId}-${index}`} model={model} isLast={index === sortedModels.length - 1} palette={palette} />
         ))}
       </div>
     </div>
@@ -112,13 +153,18 @@ function SourceSection({ sourceType, sources, totalCost, palette }: SourceSectio
 }
 
 interface ModelRowProps {
-  source: DailyContribution["sources"][0];
+  model: {
+    modelId: string;
+    cost: number;
+    messages: number;
+    tokens: { input: number; output: number; cacheRead: number; cacheWrite: number; reasoning: number };
+  };
   isLast: boolean;
   palette: GraphColorPalette;
 }
 
-function ModelRow({ source, isLast, palette }: ModelRowProps) {
-  const { modelId, providerId, tokens, cost, messages } = source;
+function ModelRow({ model, isLast, palette }: ModelRowProps) {
+  const { modelId, tokens, cost, messages } = model;
 
   return (
     <div className="relative">
@@ -130,14 +176,6 @@ function ModelRow({ source, isLast, palette }: ModelRowProps) {
       <div className="ml-6">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-mono text-sm font-semibold" style={{ color: "var(--color-fg-default)" }}>{modelId}</span>
-          {providerId && (
-            <span
-              className="inline-flex items-center px-2 py-1 rounded-md"
-              style={{ backgroundColor: "var(--color-badge-bg)", color: "var(--color-fg-muted)" }}
-            >
-              <ProviderLogo providerId={providerId} height={12} />
-            </span>
-          )}
           <span className="font-bold text-sm" style={{ color: palette.grade1 }}>{formatCurrency(cost)}</span>
         </div>
 

@@ -8,10 +8,21 @@ export interface TokenBreakdown {
   reasoning: number;
 }
 
+export interface ModelData {
+  tokens: number;
+  cost: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  messages: number;
+}
+
 export interface SourceContribution {
   source: SourceType;
   modelId: string;
   providerId?: string;
+  models?: Record<string, ModelData>;
   tokens: TokenBreakdown;
   cost: number;
   messages: number;

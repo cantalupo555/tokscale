@@ -272,6 +272,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         sources: Object.entries(day.sources).map(([source, breakdown]) => ({
           source,
           modelId: breakdown.modelId || "",
+          models: breakdown.models || {},
           tokens: {
             input: breakdown.input || 0,
             output: breakdown.output || 0,
