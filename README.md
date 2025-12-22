@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Tokscale](./.github/assets/hero.png)](https://github.com/junhoyeo/tokscale#tokscale)
+[![Tokscale](./.github/assets/hero.png)](https://tokscale.ai)
 
 </div>
 
@@ -33,7 +33,7 @@
 
 | Frontend (3D Contributions Graph) |
 |:---:|
-| <img alt="Frontend (3D Contributions Graph" src=".github/assets/frontend-contributions-graph.png" width="700px" /> |
+| <a href="https://tokscale.ai"><img alt="Frontend (3D Contributions Graph" src=".github/assets/frontend-contributions-graph.png" width="700px" /></a> |
 
 > **Run [`bunx tokscale submit`](#social) to submit your usage data to the leaderboard and create your public profile!**
 
