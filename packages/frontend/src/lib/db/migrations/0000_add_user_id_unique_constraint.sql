@@ -65,8 +65,8 @@ CREATE TABLE "submissions" (
 	"submission_hash" varchar(64),
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "submissions_submission_hash_unique" UNIQUE("submission_hash"),
-	CONSTRAINT "submissions_user_id_unique" UNIQUE("user_id")
+	CONSTRAINT "submissions_user_id_unique" UNIQUE("user_id"),
+	CONSTRAINT "submissions_user_hash_unique" UNIQUE("user_id", "submission_hash")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (

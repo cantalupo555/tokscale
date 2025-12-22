@@ -165,7 +165,7 @@ export const submissions = pgTable(
     status: varchar("status", { length: 20 }).notNull().default("verified"),
 
     cliVersion: varchar("cli_version", { length: 20 }),
-    submissionHash: varchar("submission_hash", { length: 64 }).unique(),
+    submissionHash: varchar("submission_hash", { length: 64 }),
 
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -181,6 +181,7 @@ export const submissions = pgTable(
     index("idx_submissions_created_at").on(table.createdAt),
     index("idx_submissions_date_range").on(table.dateStart, table.dateEnd),
     unique("submissions_user_id_unique").on(table.userId),
+    unique("submissions_user_hash_unique").on(table.userId, table.submissionHash),
   ]
 );
 
