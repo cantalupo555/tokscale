@@ -5,9 +5,9 @@ import ProfilePageClient from './ProfilePageClient';
 export const revalidate = 60;
 
 async function getProfileData(username: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}` 
-    : 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL 
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    || 'http://localhost:3000';
   
   const res = await fetch(`${baseUrl}/api/users/${username}`, {
     next: { revalidate: 60 },
