@@ -8,7 +8,7 @@ import { Navigation } from "@/components/layout/Navigation";
 import { Footer } from "@/components/layout/Footer";
 import { LeaderboardSkeleton } from "@/components/Skeleton";
 import { BlackholeHero } from "@/components/BlackholeHero";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 
 type Period = "all" | "month" | "week";
 
@@ -76,9 +76,20 @@ export default function LeaderboardPage() {
             See who&apos;s using the most AI tokens
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 md:flex gap-3">
+          <div
+              className="flex-1 rounded-xl border p-3 sm:p-4"
+              style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
+            >
+              <p className="text-xs sm:text-sm" style={{ color: "var(--color-fg-muted)" }}>
+                Users
+              </p>
+              <p className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-fg-default)" }}>
+                {data ? data.stats.uniqueUsers : "-"}
+              </p>
+            </div>
             <div
-              className="rounded-xl border p-3 sm:p-4"
+              className="flex-1 rounded-xl border p-3 sm:p-4"
               style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
             >
               <p className="text-xs sm:text-sm" style={{ color: "var(--color-fg-muted)" }}>
@@ -93,7 +104,7 @@ export default function LeaderboardPage() {
               </p>
             </div>
             <div
-              className="rounded-xl border p-3 sm:p-4"
+              className="flex-1 rounded-xl border p-3 sm:p-4"
               style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
             >
               <p className="text-xs sm:text-sm" style={{ color: "var(--color-fg-muted)" }}>
@@ -107,19 +118,8 @@ export default function LeaderboardPage() {
                 {data ? formatCurrency(data.stats.totalCost) : "-"}
               </p>
             </div>
-            <div
-              className="rounded-xl border p-3 sm:p-4"
-              style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
-            >
-              <p className="text-xs sm:text-sm" style={{ color: "var(--color-fg-muted)" }}>
-                Users
-              </p>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-fg-default)" }}>
-                {data ? data.stats.uniqueUsers : "-"}
-              </p>
-            </div>
-            <div
-              className="rounded-xl border p-3 sm:p-4"
+            {/* <div
+              className="flex-1 rounded-xl border p-3 sm:p-4"
               style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
             >
               <p className="text-xs sm:text-sm" style={{ color: "var(--color-fg-muted)" }}>
@@ -128,7 +128,7 @@ export default function LeaderboardPage() {
               <p className="text-xl sm:text-2xl font-bold" style={{ color: "var(--color-fg-default)" }}>
                 {data ? data.stats.totalSubmissions : "-"}
               </p>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -203,7 +203,7 @@ export default function LeaderboardPage() {
                           Tokens
                         </th>
                         <th
-                          className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider hidden md:table-cell"
+                          className="px-3 sm:px-6 py-3 text-right text-xs font-medium uppercase tracking-wider hidden md:table-cell w-24"
                           style={{ color: "var(--color-fg-muted)" }}
                         >
                           Submissions
@@ -275,12 +275,12 @@ export default function LeaderboardPage() {
                             <span
                               className="font-medium text-sm sm:text-base"
                               style={{ color: "var(--color-primary)", textDecoration: "none" }}
-                              title={user.totalTokens.toLocaleString()}
+                              title={user.totalTokens.toString()}
                             >
-                              {formatNumber(user.totalTokens)}
+                              {user.totalTokens.toLocaleString()}
                             </span>
                           </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right hidden md:table-cell">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-right hidden md:table-cell w-24">
                             <span style={{ color: "var(--color-fg-muted)" }}>{user.submissionCount}</span>
                           </td>
                         </tr>
