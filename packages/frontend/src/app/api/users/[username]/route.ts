@@ -41,6 +41,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
           outputTokens: sql<number>`COALESCE(SUM(${submissions.outputTokens}), 0)`,
           cacheReadTokens: sql<number>`COALESCE(SUM(${submissions.cacheReadTokens}), 0)`,
           cacheCreationTokens: sql<number>`COALESCE(SUM(${submissions.cacheCreationTokens}), 0)`,
+          reasoningTokens: sql<number>`COALESCE(SUM(${submissions.reasoningTokens}), 0)`,
           submissionCount: sql<number>`COALESCE(MAX(${submissions.submitCount}), 0)`,
           earliestDate: sql<string>`MIN(${submissions.dateStart})`,
           latestDate: sql<string>`MAX(${submissions.dateEnd})`,
@@ -108,6 +109,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       output: number;
       cacheRead: number;
       cacheWrite: number;
+      reasoning: number;
       messages: number;
     };
 
@@ -118,6 +120,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       output: number;
       cacheRead: number;
       cacheWrite: number;
+      reasoning: number;
       messages: number;
       models?: Record<string, ModelData>;
       modelId?: string;
@@ -147,50 +150,72 @@ export async function GET(_request: Request, { params }: RouteParams) {
           for (const [source, data] of Object.entries(day.sourceBreakdown)) {
             const breakdown = data as SourceBreakdown;
             if (existing.sources[source]) {
-              existing.sources[source].tokens += breakdown.tokens;
-              existing.sources[source].cost += breakdown.cost;
-              existing.sources[source].input += breakdown.input;
-              existing.sources[source].output += breakdown.output;
-              existing.sources[source].cacheRead += breakdown.cacheRead;
-              existing.sources[source].cacheWrite += breakdown.cacheWrite;
-              existing.sources[source].messages += breakdown.messages;
+              existing.sources[source].tokens += breakdown.tokens || 0;
+              existing.sources[source].cost += breakdown.cost || 0;
+              existing.sources[source].input += breakdown.input || 0;
+              existing.sources[source].output += breakdown.output || 0;
+              existing.sources[source].cacheRead += breakdown.cacheRead || 0;
+              existing.sources[source].cacheWrite += breakdown.cacheWrite || 0;
+              existing.sources[source].reasoning += breakdown.reasoning || 0;
+              existing.sources[source].messages += breakdown.messages || 0;
               if (breakdown.models) {
                 existing.sources[source].models = existing.sources[source].models || {};
                 for (const [modelId, modelData] of Object.entries(breakdown.models)) {
                   const existingModel = existing.sources[source].models![modelId];
                   if (existingModel) {
-                    existingModel.tokens += modelData.tokens;
-                    existingModel.cost += modelData.cost;
-                    existingModel.input += modelData.input;
-                    existingModel.output += modelData.output;
-                    existingModel.cacheRead += modelData.cacheRead;
-                    existingModel.cacheWrite += modelData.cacheWrite;
-                    existingModel.messages += modelData.messages;
+                    existingModel.tokens += modelData.tokens || 0;
+                    existingModel.cost += modelData.cost || 0;
+                    existingModel.input += modelData.input || 0;
+                    existingModel.output += modelData.output || 0;
+                    existingModel.cacheRead += modelData.cacheRead || 0;
+                    existingModel.cacheWrite += modelData.cacheWrite || 0;
+                    existingModel.reasoning += modelData.reasoning || 0;
+                    existingModel.messages += modelData.messages || 0;
                   } else {
-                    existing.sources[source].models![modelId] = { ...modelData };
+                    existing.sources[source].models![modelId] = {
+                      tokens: modelData.tokens || 0,
+                      cost: modelData.cost || 0,
+                      input: modelData.input || 0,
+                      output: modelData.output || 0,
+                      cacheRead: modelData.cacheRead || 0,
+                      cacheWrite: modelData.cacheWrite || 0,
+                      reasoning: modelData.reasoning || 0,
+                      messages: modelData.messages || 0,
+                    };
                   }
                 }
               }
             } else {
-              existing.sources[source] = { ...breakdown };
+              existing.sources[source] = {
+                tokens: breakdown.tokens || 0,
+                cost: breakdown.cost || 0,
+                input: breakdown.input || 0,
+                output: breakdown.output || 0,
+                cacheRead: breakdown.cacheRead || 0,
+                cacheWrite: breakdown.cacheWrite || 0,
+                reasoning: breakdown.reasoning || 0,
+                messages: breakdown.messages || 0,
+                models: breakdown.models,
+                modelId: breakdown.modelId,
+              };
             }
             if (breakdown.models) {
               for (const [modelId, modelData] of Object.entries(breakdown.models)) {
                 const existingModel = existing.models[modelId];
                 if (existingModel) {
-                  existingModel.tokens += modelData.tokens;
-                  existingModel.cost += modelData.cost;
+                  existingModel.tokens += modelData.tokens || 0;
+                  existingModel.cost += modelData.cost || 0;
                 } else {
-                  existing.models[modelId] = { tokens: modelData.tokens, cost: modelData.cost };
+                  existing.models[modelId] = { tokens: modelData.tokens || 0, cost: modelData.cost || 0 };
                 }
               }
             } else if (breakdown.modelId) {
               const existingModel = existing.models[breakdown.modelId];
               if (existingModel) {
-                existingModel.tokens += breakdown.tokens;
-                existingModel.cost += breakdown.cost;
+                existingModel.tokens += breakdown.tokens || 0;
+                existingModel.cost += breakdown.cost || 0;
               } else {
-                existing.models[breakdown.modelId] = { tokens: breakdown.tokens, cost: breakdown.cost };
+                existing.models[breakdown.modelId] = { tokens: breakdown.tokens || 0, cost: breakdown.cost || 0 };
               }
             }
           }
@@ -201,19 +226,31 @@ export async function GET(_request: Request, { params }: RouteParams) {
         if (day.sourceBreakdown) {
           for (const [source, data] of Object.entries(day.sourceBreakdown)) {
             const breakdown = data as SourceBreakdown;
-            sources[source] = { ...breakdown };
+            // Normalize old DB data that may be missing reasoning and other fields
+            sources[source] = {
+              tokens: breakdown.tokens || 0,
+              cost: breakdown.cost || 0,
+              input: breakdown.input || 0,
+              output: breakdown.output || 0,
+              cacheRead: breakdown.cacheRead || 0,
+              cacheWrite: breakdown.cacheWrite || 0,
+              reasoning: breakdown.reasoning || 0,
+              messages: breakdown.messages || 0,
+              models: breakdown.models,
+              modelId: breakdown.modelId,
+            };
             if (breakdown.models) {
               for (const [modelId, modelData] of Object.entries(breakdown.models)) {
                 const existingModel = models[modelId];
                 if (existingModel) {
-                  existingModel.tokens += modelData.tokens;
-                  existingModel.cost += modelData.cost;
+                  existingModel.tokens += modelData.tokens || 0;
+                  existingModel.cost += modelData.cost || 0;
                 } else {
-                  models[modelId] = { tokens: modelData.tokens, cost: modelData.cost };
+                  models[modelId] = { tokens: modelData.tokens || 0, cost: modelData.cost || 0 };
                 }
               }
             } else if (breakdown.modelId) {
-              models[breakdown.modelId] = { tokens: breakdown.tokens, cost: breakdown.cost };
+              models[breakdown.modelId] = { tokens: breakdown.tokens || 0, cost: breakdown.cost || 0 };
             }
           }
         }
@@ -250,9 +287,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
       let dayCacheRead = 0;
       let dayCacheWrite = 0;
+      let dayReasoning = 0;
       for (const sourceData of Object.values(day.sources)) {
         dayCacheRead += sourceData.cacheRead || 0;
         dayCacheWrite += sourceData.cacheWrite || 0;
+        dayReasoning += sourceData.reasoning || 0;
       }
 
       return {
@@ -268,7 +307,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
           output: day.outputTokens,
           cacheRead: dayCacheRead,
           cacheWrite: dayCacheWrite,
-          reasoning: 0,
+          reasoning: dayReasoning,
         },
         sources: Object.entries(day.sources).map(([source, breakdown]) => ({
           source,
@@ -279,7 +318,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
             output: breakdown.output || 0,
             cacheRead: breakdown.cacheRead || 0,
             cacheWrite: breakdown.cacheWrite || 0,
-            reasoning: 0,
+            reasoning: breakdown.reasoning || 0,
           },
           cost: breakdown.cost || 0,
           messages: breakdown.messages || 0,
@@ -326,6 +365,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         outputTokens: Number(stats?.outputTokens) || 0,
         cacheReadTokens: Number(stats?.cacheReadTokens) || 0,
         cacheWriteTokens: Number(stats?.cacheCreationTokens) || 0,
+        reasoningTokens: Number(stats?.reasoningTokens) || 0,
         submissionCount: Number(stats?.submissionCount) || 0,
         activeDays,
       },
