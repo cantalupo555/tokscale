@@ -57,12 +57,12 @@ const NavItemBase = styled.a<{ $isActive: boolean }>`
   
   ${({ $isActive }) =>
     $isActive
-      ? `
+      ? css`
     background: rgba(235, 242, 245, 0.96);
     border: 1px solid rgba(235, 242, 245, 0.96);
     color: #000000;
   `
-      : `
+      : css`
     background: transparent;
     border: 1px solid transparent;
     color: #D9D9D9;
@@ -210,6 +210,8 @@ export function Navigation() {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  console.log({pathname})
 
   useEffect(() => {
     fetch("/api/auth/session")
