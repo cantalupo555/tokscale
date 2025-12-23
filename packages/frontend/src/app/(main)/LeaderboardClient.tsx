@@ -361,13 +361,48 @@ interface LeaderboardClientProps {
   initialData: LeaderboardData;
 }
 
+function isValidLeaderboardData(data: unknown): data is LeaderboardData {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "users" in data &&
+    "pagination" in data &&
+    "stats" in data &&
+    Array.isArray((data as LeaderboardData).users)
+  );
+}
+
 export default function LeaderboardClient({ initialData }: LeaderboardClientProps) {
   const [data, setData] = useState<LeaderboardData>(initialData);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState<Period>(initialData.period);
   const [page, setPage] = useState(initialData.pagination.page);
 
   const isFirstMount = useRef(true);
+
+  const fetchData = (targetPeriod: Period, targetPage: number, signal?: AbortSignal) => {
+    setIsLoading(true);
+    setError(null);
+    fetch(`/api/leaderboard?period=${targetPeriod}&page=${targetPage}&limit=50`, { signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((result) => {
+        if (!isValidLeaderboardData(result)) {
+          throw new Error("Invalid response format");
+        }
+        setData(result);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          setError(err.message || "Failed to load");
+          setIsLoading(false);
+        }
+      });
+  };
 
   useEffect(() => {
     if (isFirstMount.current) {
@@ -376,24 +411,15 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
     }
 
     const abortController = new AbortController();
-
-    setIsLoading(true);
-    fetch(`/api/leaderboard?period=${period}&page=${page}&limit=50`, {
-      signal: abortController.signal,
-    })
-      .then((res) => res.json())
-      .then((result) => {
-        setData(result);
-        setIsLoading(false);
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") {
-          setIsLoading(false);
-        }
-      });
-
+    fetchData(period, page, abortController.signal);
     return () => abortController.abort();
   }, [period, page]);
+
+  useEffect(() => {
+    if (data.pagination.totalPages > 0 && page > data.pagination.totalPages) {
+      setPage(data.pagination.totalPages);
+    }
+  }, [data.pagination.totalPages, page]);
 
   return (
     <>
@@ -462,6 +488,33 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
 
       {isLoading ? (
         <LeaderboardSkeleton />
+      ) : error ? (
+        <TableContainer
+          style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
+        >
+          <EmptyState>
+            <EmptyMessage style={{ color: "var(--color-fg-muted)" }}>
+              Failed to load leaderboard
+            </EmptyMessage>
+            <EmptyHint style={{ color: "var(--color-fg-subtle)" }}>
+              {error}
+            </EmptyHint>
+            <button
+              onClick={() => fetchData(period, page)}
+              style={{
+                marginTop: 16,
+                padding: "8px 16px",
+                backgroundColor: "var(--color-primary)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              Retry
+            </button>
+          </EmptyState>
+        </TableContainer>
       ) : (
         <TableContainer
           style={{ backgroundColor: "var(--color-bg-default)", borderColor: "var(--color-border-default)" }}
