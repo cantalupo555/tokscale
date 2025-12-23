@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { Pagination, Avatar } from "@primer/react";
 import { TabBar } from "@/components/TabBar";
@@ -148,10 +149,11 @@ const TableHeaderCell = styled.th`
 const TableBody = styled.tbody``;
 
 const TableRow = styled.tr`
-  transition: opacity 0.2s;
+  cursor: pointer;
+  transition: background-color 0.2s;
   
   &:hover {
-    opacity: 0.8;
+    background-color: rgba(20, 26, 33, 0.6);
   }
 `;
 
@@ -194,7 +196,7 @@ const RankBadge = styled.span`
   }
 `;
 
-const UserLink = styled(Link)`
+const UserContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
@@ -214,15 +216,10 @@ const UserDisplayName = styled.p`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 120px;
-  transition: opacity 0.2s;
   
   @media (min-width: 640px) {
     font-size: 16px;
     max-width: none;
-  }
-  
-  ${UserLink}:hover & {
-    opacity: 0.8;
   }
 `;
 
@@ -244,6 +241,21 @@ const StatSpan = styled.span`
   
   @media (min-width: 640px) {
     font-size: 16px;
+  }
+`;
+
+const TokenValue = styled.span`
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--color-primary);
+  transition: color 0.12s ease;
+  
+  @media (min-width: 640px) {
+    font-size: 16px;
+  }
+  
+  ${TableRow}:hover & {
+    color: #0073FF;
   }
 `;
 
@@ -376,6 +388,7 @@ interface LeaderboardData {
 }
 
 export default function LeaderboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("all");
@@ -535,6 +548,7 @@ export default function LeaderboardPage() {
                       {data.users.map((user, index) => (
                         <TableRow
                           key={user.userId}
+                          onClick={() => router.push(`/u/${user.username}`)}
                           style={{
                             borderBottom: index < data.users.length - 1 ? "1px solid var(--color-border-default)" : "none",
                           }}
@@ -556,7 +570,7 @@ export default function LeaderboardPage() {
                             </RankBadge>
                           </TableCell>
                           <TableCell>
-                            <UserLink href={`/u/${user.username}`}>
+                            <UserContainer>
                               <Avatar
                                 src={user.avatarUrl || `https://github.com/${user.username}.png`}
                                 alt={user.username}
@@ -574,7 +588,7 @@ export default function LeaderboardPage() {
                                   @{user.username}
                                 </Username>
                               </UserInfo>
-                            </UserLink>
+                            </UserContainer>
                           </TableCell>
                           <TableCell className="text-right">
                             <StatSpan
@@ -585,12 +599,9 @@ export default function LeaderboardPage() {
                             </StatSpan>
                           </TableCell>
                           <TableCell className="text-right">
-                            <StatSpan
-                              style={{ color: "var(--color-primary)", textDecoration: "none" }}
-                              title={user.totalTokens.toString()}
-                            >
+                            <TokenValue title={user.totalTokens.toString()}>
                               {user.totalTokens.toLocaleString()}
-                            </StatSpan>
+                            </TokenValue>
                           </TableCell>
                           <TableCell className="text-right hidden-mobile w-24">
                             <span style={{ color: "var(--color-fg-muted)" }}>{user.submissionCount}</span>
