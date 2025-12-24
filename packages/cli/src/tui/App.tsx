@@ -62,7 +62,7 @@ export function App(props: AppProps) {
   const [statusMessage, setStatusMessage] = createSignal<string | null>(null);
   let statusTimeout: ReturnType<typeof setTimeout> | null = null;
   const [autoRefreshEnabled, setAutoRefreshEnabled] = createSignal(settings.autoRefreshEnabled ?? false);
-  const [autoRefreshMs, setAutoRefreshMs] = createSignal(settings.autoRefreshMs ?? 10000);
+  const [autoRefreshMs, setAutoRefreshMs] = createSignal(settings.autoRefreshMs ?? 60000);
 
   const showStatus = (msg: string, duration = 2000) => {
     if (statusTimeout) clearTimeout(statusTimeout);
@@ -74,16 +74,10 @@ export function App(props: AppProps) {
     if (statusTimeout) clearTimeout(statusTimeout);
   });
 
-  const MIN_AUTO_REFRESH_MS = 2000;
+  const MIN_AUTO_REFRESH_MS = 30000;
   const MAX_AUTO_REFRESH_MS = 3600000;
   const AUTO_REFRESH_STEPS_MS = [
-    2000,
-    5000,
-    10000,
-    20000,
     30000,
-    40000,
-    50000,
     60000,
     120000,
     300000,

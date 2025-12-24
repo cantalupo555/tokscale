@@ -9,9 +9,9 @@ const CONFIG_FILE = join(CONFIG_DIR, "tui-settings.json");
 const CACHE_FILE = join(CACHE_DIR, "tui-data-cache.json");
 
 const CACHE_STALE_THRESHOLD_MS = 60 * 1000;
-const MIN_AUTO_REFRESH_MS = 2000;
+const MIN_AUTO_REFRESH_MS = 30000;
 const MAX_AUTO_REFRESH_MS = 3600000;
-const DEFAULT_AUTO_REFRESH_MS = 10000;
+const DEFAULT_AUTO_REFRESH_MS = 60000;
 
 interface TUISettings {
   colorPalette: string;
