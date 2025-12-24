@@ -133,12 +133,13 @@ export function App(props: AppProps) {
 
   createEffect(() => {
     if (!autoRefreshEnabled()) return;
+    const ms = autoRefreshMs();
     const interval = setInterval(() => {
       if (!loading() && !isRefreshing()) {
         refresh();
       }
-    }, autoRefreshMs());
-    return () => clearInterval(interval);
+    }, ms);
+    onCleanup(() => clearInterval(interval));
   });
 
   const contentHeight = () => Math.max(rows() - 4, 12);
