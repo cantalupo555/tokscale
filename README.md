@@ -36,7 +36,7 @@
 |:---:|:---:|
 | <a href="https://tokscale.ai"><img alt="Frontend (3D Contributions Graph)" src=".github/assets/frontend-contributions-graph.png" width="700px" /></a> | <a href="#wrapped-2025"><img alt="Wrapped 2025" src=".github/assets/wrapped-2025.png" width="700px" /></a> |
 
-> **Run [`bunx tokscale submit`](#social) to submit your usage data to the leaderboard and create your public profile!**
+> **Run [`bunx tokscale@latest submit`](#social) to submit your usage data to the leaderboard and create your public profile!**
 
 ## Contents
 
@@ -119,7 +119,7 @@ In the age of AI-assisted development, **tokens are the new energy**. They power
 curl -fsSL https://bun.sh/install | bash
 
 # Run directly with bunx
-bunx tokscale
+bunx tokscale@latest
 ```
 
 That's it! This gives you the full interactive TUI experience with zero setup.
