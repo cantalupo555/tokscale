@@ -642,8 +642,14 @@ async function generateWrappedImage(data: WrappedData, options: { short?: boolea
   let yPos = PADDING + 24 * SCALE;
 
   const credentials = loadCredentials();
-  const titleText = credentials
-    ? `@${credentials.username}'s Wrapped ${data.year}`
+  const MAX_USERNAME_LENGTH = 30; // GitHub max is 39, but leave room for layout
+  const displayUsername = credentials?.username
+    ? credentials.username.length > MAX_USERNAME_LENGTH
+      ? credentials.username.substring(0, MAX_USERNAME_LENGTH - 1) + '…'
+      : credentials.username
+    : null;
+  const titleText = displayUsername
+    ? `@${displayUsername}'s Wrapped ${data.year}`
     : `My Wrapped ${data.year}`;
   ctx.fillStyle = COLORS.textPrimary;
   ctx.font = `bold ${28 * SCALE}px Figtree, sans-serif`;
