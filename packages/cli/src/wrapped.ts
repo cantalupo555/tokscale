@@ -3,6 +3,7 @@ import { Resvg } from "@resvg/resvg-js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import pc from "picocolors";
 import {
   parseLocalSourcesAsync,
   finalizeReportAsync,
@@ -28,6 +29,7 @@ interface WrappedData {
   topAgents?: Array<{ name: string; cost: number; tokens: number; messages: number }>;
   contributions: Array<{ date: string; level: 0 | 1 | 2 | 3 | 4 }>;
   totalMessages: number;
+  agentsFallbackToClients?: boolean;
 }
 
 export interface WrappedOptions {
@@ -346,6 +348,10 @@ async function loadWrappedData(options: WrappedOptions): Promise<WrappedData> {
     topAgents = agentsList.length > 0 ? agentsList : undefined;
   }
 
+  const agentsWereRequested = options.includeAgents !== false;
+  const noAgentDataAvailable = !topAgents || topAgents.length === 0;
+  const agentsFallbackToClients = agentsWereRequested && noAgentDataAvailable;
+
   const maxCost = Math.max(...graph.contributions.map(c => c.totals.cost), 1);
   const contributions = graph.contributions.map(c => ({
     date: c.date,
@@ -371,6 +377,7 @@ async function loadWrappedData(options: WrappedOptions): Promise<WrappedData> {
     topAgents,
     contributions,
     totalMessages: report.totalMessages,
+    agentsFallbackToClients,
   };
 }
 
@@ -834,9 +841,17 @@ async function generateWrappedImage(data: WrappedData, options: { short?: boolea
 
 export async function generateWrapped(options: WrappedOptions): Promise<string> {
   const data = await loadWrappedData(options);
+
+  let effectiveIncludeAgents = options.includeAgents;
+  if (data.agentsFallbackToClients) {
+    console.warn(pc.yellow(`\n  ⚠ No OpenCode agent data found for ${data.year}.`));
+    console.warn(pc.gray("    Falling back to clients view.\n"));
+    effectiveIncludeAgents = false;
+  }
+
   const imageBuffer = await generateWrappedImage(data, {
     short: options.short,
-    includeAgents: options.includeAgents,
+    includeAgents: effectiveIncludeAgents,
     pinSisyphus: options.pinSisyphus,
   });
 
