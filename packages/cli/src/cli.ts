@@ -6,7 +6,7 @@
  * All heavy computation is done in the native Rust module.
  */
 
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pkg = require("../package.json") as { version: string };
@@ -305,8 +305,8 @@ async function main() {
     .option("--cursor", "Include only Cursor IDE data")
     .option("--no-spinner", "Disable loading spinner (for scripting)")
     .option("--short", "Display total tokens in abbreviated format (e.g., 7.14B)")
-    .option("--agents", "Show Top OpenCode Agents (default)")
-    .option("--clients", "Show Top Clients instead of Top OpenCode Agents")
+    .addOption(new Option("--agents", "Show Top OpenCode Agents (default)").conflicts("clients"))
+    .addOption(new Option("--clients", "Show Top Clients instead of Top OpenCode Agents").conflicts("agents"))
     .option("--disable-pinned", "Disable pinning of Sisyphus agents in rankings")
     .action(async (options) => {
       await handleWrappedCommand(options);
