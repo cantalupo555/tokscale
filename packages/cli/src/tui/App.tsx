@@ -39,7 +39,7 @@ export function App(props: AppProps) {
   const [enabledSources, setEnabledSources] = createSignal<Set<SourceType>>(
     new Set(props.enabledSources ?? ALL_SOURCES)
   );
-  const [sortBy, setSortBy] = createSignal<SortType>(props.sortBy ?? "cost");
+  const [sortBy, setSortBy] = createSignal<SortType>(props.sortBy ?? "tokens");
   const [sortDesc, setSortDesc] = createSignal(props.sortDesc ?? true);
   const [selectedIndex, setSelectedIndex] = createSignal(0);
   const [scrollOffset, setScrollOffset] = createSignal(0);
@@ -395,6 +395,7 @@ export function App(props: AppProps) {
                   colorPalette={colorPalette()}
                   width={columns()}
                   selectedDate={selectedDate()}
+                  sortBy={sortBy()}
                 />
               </Match>
             </Switch>

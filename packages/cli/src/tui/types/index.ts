@@ -31,6 +31,7 @@ export interface DailyEntry {
 export interface ContributionDay {
   date: string;
   cost: number;
+  tokens: number;
   level: number;
 }
 
