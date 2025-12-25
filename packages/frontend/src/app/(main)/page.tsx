@@ -20,18 +20,7 @@ export default async function LeaderboardPage() {
     >
       <Navigation />
 
-      <main
-        style={{
-          flex: 1,
-          maxWidth: 1280,
-          marginLeft: "auto",
-          marginRight: "auto",
-          paddingLeft: 24,
-          paddingRight: 24,
-          paddingBottom: 40,
-          width: "100%",
-        }}
-      >
+      <main className="main-container">
         <BlackholeHero />
         <LeaderboardClient initialData={initialData} />
       </main>

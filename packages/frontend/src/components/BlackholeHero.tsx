@@ -105,6 +105,17 @@ const HeroContainer = styled.div`
   border-bottom: 1px solid #1E2733;
   border-left: 1px solid #1E2733;
   border-right: 1px solid #1E2733;
+
+  @media (max-width: 560px) {
+    height: 380px;
+    margin-bottom: 1.5rem;
+    border-radius: 0px 0px 16px 16px;
+  }
+
+  @media (max-width: 480px) {
+    height: auto;
+    min-height: 320px;
+  }
 `;
 
 const BackgroundWrapper = styled.div`
@@ -131,6 +142,19 @@ const ContentWrapper = styled.div`
   align-items: center;
   padding-top: 90px;
   gap: 39px;
+
+  @media (max-width: 560px) {
+    padding-top: 86px;
+    gap: 24px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding-top: 86px;
+    padding-bottom: 32px;
+    gap: 16px;
+  }
 `;
 
 const LogoWrapper = styled.div`
@@ -138,6 +162,16 @@ const LogoWrapper = styled.div`
   width: 173px;
   height: 36px;
   flex-shrink: 0;
+
+  @media (max-width: 560px) {
+    width: 140px;
+    height: 30px;
+  }
+
+  @media (max-width: 400px) {
+    width: 120px;
+    height: 26px;
+  }
 `;
 
 const LogoImage = styled(Image)`
@@ -153,6 +187,14 @@ const HeroTitle = styled.h1`
   line-height: 0.94em;
   letter-spacing: -0.05em;
   text-shadow: 0px 6px 12px 0px rgba(0, 30, 66, 0.6);
+
+  @media (max-width: 560px) {
+    font-size: 32px;
+  }
+
+  @media (max-width: 400px) {
+    font-size: 28px;
+  }
 `;
 
 const CommandCard = styled.div`
@@ -166,6 +208,11 @@ const CommandCard = styled.div`
   backdrop-filter: blur(4px);
   background-color: #10121C;
   border-color: #1E2733;
+
+  @media (max-width: 400px) {
+    padding: 6px;
+    gap: 5px;
+  }
 `;
 
 const CopyButton = styled.button`
@@ -188,6 +235,11 @@ const CopyButton = styled.button`
   &:active {
     transform: scale(0.95);
   }
+
+  @media (max-width: 400px) {
+    height: 32px;
+    width: 76px;
+  }
 `;
 
 const CopyButtonText = styled.span`
@@ -196,6 +248,10 @@ const CopyButtonText = styled.span`
   color: white;
   line-height: 1;
   letter-spacing: -0.025em;
+
+  @media (max-width: 400px) {
+    font-size: 14px;
+  }
 `;
 
 const CommandDisplay = styled.div`
@@ -210,6 +266,13 @@ const CommandDisplay = styled.div`
   padding-left: 0.75rem;
   padding-right: 0.75rem;
   width: 190px;
+
+  @media (max-width: 400px) {
+    height: 32px;
+    width: 170px;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
 `;
 
 const CommandTextWrapper = styled.div`
@@ -225,6 +288,10 @@ const CommandPrefix = styled.span`
   font-weight: 500;
   line-height: 94%;
   letter-spacing: -0.8px;
+
+  @media (max-width: 400px) {
+    font-size: 14px;
+  }
 `;
 
 const CommandName = styled.span`
@@ -237,6 +304,10 @@ const CommandName = styled.span`
   font-weight: 500;
   line-height: 94%;
   letter-spacing: -0.8px;
+
+  @media (max-width: 400px) {
+    font-size: 14px;
+  }
 `;
 
 const GradientSeparator = styled.div`
@@ -245,6 +316,12 @@ const GradientSeparator = styled.div`
   width: 25px;
   height: 36px;
   background: linear-gradient(270deg, rgba(26, 27, 28, 0) 0%, rgba(1, 127, 255, 0.14) 50%, rgba(26, 27, 28, 0) 100%);
+
+  @media (max-width: 400px) {
+    height: 32px;
+    width: 20px;
+    margin-left: 8px;
+  }
 `;
 
 const FooterContainer = styled.div`
@@ -252,6 +329,10 @@ const FooterContainer = styled.div`
   flex-direction: column;
   align-items: center;
   gap: 4px;
+
+  @media (max-width: 400px) {
+    gap: 3px;
+  }
 `;
 
 const StarContainer = styled.div`
@@ -262,6 +343,16 @@ const StarContainer = styled.div`
 
 const StyledStarIcon = styled(Image)`
   display: block;
+
+  @media (max-width: 560px) {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  @media (max-width: 400px) {
+    width: 18px !important;
+    height: 18px !important;
+  }
 `;
 
 const StarText = styled.span`
@@ -269,6 +360,14 @@ const StarText = styled.span`
   font-weight: 700;
   color: white;
   font-family: var(--font-figtree), "Figtree", sans-serif;
+
+  @media (max-width: 560px) {
+    font-size: 16px;
+  }
+
+  @media (max-width: 400px) {
+    font-size: 15px;
+  }
 `;
 
 const GitHubLink = styled(Link)`
@@ -281,5 +380,13 @@ const GitHubLink = styled(Link)`
 
   &:hover {
     color: white;
+  }
+
+  @media (max-width: 560px) {
+    font-size: 14px;
+  }
+
+  @media (max-width: 400px) {
+    font-size: 13px;
   }
 `;

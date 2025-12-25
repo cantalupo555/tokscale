@@ -24,8 +24,13 @@ const Description = styled.p`
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  
+  @media (min-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
   
   @media (min-width: 768px) {
     display: flex;
@@ -86,6 +91,10 @@ const TableWrapper = styled.div`
 const Table = styled.table`
   width: 100%;
   min-width: 500px;
+  
+  @media (max-width: 560px) {
+    min-width: unset;
+  }
 `;
 
 const TableHead = styled.thead`
@@ -102,6 +111,13 @@ const TableHeaderCell = styled.th`
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  
+  @media (max-width: 480px) {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
   
   @media (min-width: 640px) {
     padding-left: 24px;
@@ -120,8 +136,24 @@ const TableHeaderCell = styled.th`
     }
   }
   
+  &.hidden-cost-mobile {
+    @media (max-width: 560px) {
+      display: none;
+    }
+  }
+  
   &.w-24 {
     width: 96px;
+  }
+  
+  &.rank-cell {
+    width: 1%;
+    white-space: nowrap;
+    
+    @media (max-width: 560px) {
+      padding-left: 8px;
+      padding-right: 4px;
+    }
   }
 `;
 
@@ -144,6 +176,13 @@ const TableCell = styled.td`
   white-space: nowrap;
   vertical-align: middle;
   
+  @media (max-width: 480px) {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  
   @media (min-width: 640px) {
     padding-left: 24px;
     padding-right: 24px;
@@ -161,14 +200,34 @@ const TableCell = styled.td`
     }
   }
   
+  &.hidden-cost-mobile {
+    @media (max-width: 560px) {
+      display: none;
+    }
+  }
+  
   &.w-24 {
     width: 96px;
+  }
+  
+  &.rank-cell {
+    width: 1%;
+    white-space: nowrap;
+    
+    @media (max-width: 560px) {
+      padding-left: 8px;
+      padding-right: 4px;
+    }
   }
 `;
 
 const RankBadge = styled.span`
   font-size: 16px;
   font-weight: bold;
+  
+  @media (max-width: 480px) {
+    font-size: 14px;
+  }
   
   @media (min-width: 640px) {
     font-size: 18px;
@@ -179,6 +238,15 @@ const UserContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  
+  @media (max-width: 480px) {
+    gap: 6px;
+    
+    img {
+      width: 32px !important;
+      height: 32px !important;
+    }
+  }
   
   @media (min-width: 640px) {
     gap: 12px;
@@ -196,6 +264,11 @@ const UserDisplayName = styled.p`
   text-overflow: ellipsis;
   max-width: 120px;
   
+  @media (max-width: 480px) {
+    max-width: 80px;
+    font-size: 13px;
+  }
+  
   @media (min-width: 640px) {
     font-size: 16px;
     max-width: none;
@@ -207,6 +280,11 @@ const Username = styled.p`
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 120px;
+  
+  @media (max-width: 480px) {
+    max-width: 80px;
+    font-size: 11px;
+  }
   
   @media (min-width: 640px) {
     font-size: 14px;
@@ -229,12 +307,37 @@ const TokenValue = styled.span`
   color: var(--color-primary);
   transition: color 0.12s ease;
   
+  @media (max-width: 480px) {
+    font-size: 13px;
+  }
+  
   @media (min-width: 640px) {
     font-size: 16px;
   }
   
   ${TableRow}:hover & {
     color: #0073FF;
+  }
+`;
+
+const CombinedValueContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  
+  @media (min-width: 561px) {
+    display: block;
+  }
+`;
+
+const CostValue = styled.span`
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  
+  @media (min-width: 561px) {
+    display: none;
   }
 `;
 
@@ -299,10 +402,13 @@ const CodeLine = styled.div`
   border-radius: 8px;
   display: flex;
   align-items: center;
-  font-family: "Inconsolata", monospace !important;
   font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.8px;
+
+  * {
+    font-family: "Inconsolata", monospace !important;
+  }
 `;
 
 const CommandPrompt = styled.span`
@@ -552,6 +658,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                   >
                     <tr>
                       <TableHeaderCell
+                        className="rank-cell"
                         style={{ color: "var(--color-fg-muted)" }}
                       >
                         Rank
@@ -562,7 +669,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                         User
                       </TableHeaderCell>
                       <TableHeaderCell
-                        className="text-right"
+                        className="text-right hidden-cost-mobile"
                         style={{ color: "var(--color-fg-muted)" }}
                       >
                         Cost
@@ -590,7 +697,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                           borderBottom: index < data.users.length - 1 ? "1px solid var(--color-border-default)" : "none",
                         }}
                       >
-                        <TableCell>
+                        <TableCell className="rank-cell">
                           <RankBadge
                             style={{
                               color:
@@ -627,7 +734,7 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                             </UserInfo>
                           </UserContainer>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right hidden-cost-mobile">
                           <StatSpan
                             style={{ color: "var(--color-fg-default)", textDecoration: "none" }}
                             title={user.totalCost.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })}
@@ -636,11 +743,18 @@ export default function LeaderboardClient({ initialData }: LeaderboardClientProp
                           </StatSpan>
                         </TableCell>
                         <TableCell className="text-right">
-                          <TokenValue
-                            title={user.totalTokens.toLocaleString('en-US')}
-                          >
-                            {user.totalTokens.toLocaleString('en-US')}
-                          </TokenValue>
+                          <CombinedValueContainer>
+                            <TokenValue
+                              title={user.totalTokens.toLocaleString('en-US')}
+                            >
+                              {formatNumber(user.totalTokens)}
+                            </TokenValue>
+                            <CostValue
+                              title={user.totalCost.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 })}
+                            >
+                              {formatCurrency(user.totalCost)}
+                            </CostValue>
+                          </CombinedValueContainer>
                         </TableCell>
                         <TableCell className="text-right hidden-mobile w-24">
                           <span style={{ color: "var(--color-fg-muted)" }}>{user.submissionCount}</span>
