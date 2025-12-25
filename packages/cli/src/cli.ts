@@ -935,13 +935,15 @@ interface WrappedCommandOptions extends FilterOptions {
 async function handleWrappedCommand(options: WrappedCommandOptions) {
   const useSpinner = options.spinner !== false;
   const spinner = useSpinner ? createSpinner({ color: "cyan" }) : null;
-  spinner?.start(pc.gray("Generating your 2025 Wrapped..."));
+  const currentYear = new Date().getFullYear().toString();
+  const year = options.year || currentYear;
+  spinner?.start(pc.gray(`Generating your ${year} Wrapped...`));
 
   try {
     const enabledSources = getEnabledSources(options);
     const outputPath = await generateWrapped({
       output: options.output,
-      year: options.year || "2025",
+      year,
       sources: enabledSources,
       short: options.short,
       includeAgents: options.agents,
