@@ -245,9 +245,14 @@ async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilte
   for (const d of dailyEntries) {
     if (d.cost > maxCost) maxCost = d.cost;
   }
+  let maxTokens = 1;
+  for (const d of dailyEntries) {
+    if (d.total > maxTokens) maxTokens = d.total;
+  }
   const contributions: ContributionDay[] = dailyEntries.map(d => ({
     date: d.date,
     cost: d.cost,
+    tokens: d.total,
     level: d.cost === 0 ? 0 : (Math.min(4, Math.ceil((d.cost / maxCost) * 4)) as 0 | 1 | 2 | 3 | 4),
   }));
 
