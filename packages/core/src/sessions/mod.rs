@@ -2,6 +2,7 @@
 //!
 //! Each source has its own parser that converts to a unified message format.
 
+pub mod amp;
 pub mod claudecode;
 pub mod codex;
 pub mod cursor;
