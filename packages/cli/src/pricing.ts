@@ -49,6 +49,10 @@ export function normalizeModelName(modelId: string): string | null {
     return "gemini-2.5-flash";
   }
 
+  if (lower === "big pickle" || lower === "big-pickle" || lower === "bigpickle") {
+    return "glm-4.6";
+  }
+
   return null;
 }
 
