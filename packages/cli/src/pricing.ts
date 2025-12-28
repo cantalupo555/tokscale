@@ -71,6 +71,85 @@ const OPENROUTER_CACHE_FILENAME = "openrouter-pricing.json";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+const DEFAULT_FETCH_RETRIES = 2;
+const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+
+function getFetchRetries(): number {
+  const env = process.env.TOKSCALE_FETCH_RETRIES;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return parsed;
+    }
+  }
+  return DEFAULT_FETCH_RETRIES;
+}
+
+interface FetchWithRetryOptions {
+  headers?: Record<string, string>;
+  timeoutMs?: number;
+  retries?: number;
+}
+
+/** Respects Retry-After header (integer seconds only, no HTTP-date) */
+async function fetchWithRetry(
+  url: string,
+  options: FetchWithRetryOptions = {}
+): Promise<Response> {
+  const { headers, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS, retries = getFetchRetries() } = options;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers,
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      if ((response.status === 429 || response.status >= 500) && attempt < retries) {
+        let delay = 1000 * (attempt + 1);
+
+        const retryAfter = response.headers.get("Retry-After");
+        if (retryAfter) {
+          const parsed = parseInt(retryAfter, 10);
+          if (Number.isFinite(parsed) && parsed > 0) {
+            delay = Math.min(parsed * 1000, 5000);
+          }
+        }
+
+        if (process.env.DEBUG) {
+          console.warn(`[Fetch] HTTP ${response.status} for ${url}, retrying in ${delay}ms...`);
+        }
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+
+      return response;
+    } catch (err) {
+      lastError = err as Error;
+      if (attempt < retries) {
+        const delay = 1000 * (attempt + 1);
+        if (process.env.DEBUG) {
+          console.warn(`[Fetch] Error for ${url}: ${lastError.message}, retrying in ${delay}ms...`);
+        }
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError || new Error(`Failed to fetch ${url} after ${retries + 1} attempts`);
+}
+
 /**
  * Response from /api/v1/models/{author}/{slug}/endpoints
  * Contains all available providers for a specific model
@@ -98,9 +177,8 @@ export interface OpenRouterEndpointsResponse {
 // Manual mapping from model IDs to OpenRouter model IDs
 // Format: { "local-model-id": "openrouter-provider/model-id" }
 export const OPENROUTER_MODEL_MAPPING: Record<string, string> = {
-  // GLM models - Z-AI is the primary/author provider
   "glm-4.7": "z-ai/glm-4.7",
-  "glm-4-7": "z-ai/glm-4.7",
+  "glm-4.7-free": "z-ai/glm-4.7",
 };
 
 // Mapping for author names that don't match provider names exactly
@@ -144,6 +222,14 @@ export interface PricingEntry {
     cacheReadInputTokenCost?: number;
     cacheCreationInputTokenCost?: number;
   };
+}
+
+export type PricingSource = "litellm" | "openrouter";
+
+export interface PricingLookupResult {
+  pricing: LiteLLMModelPricing;
+  source: PricingSource;
+  matchedKey: string;
 }
 
 function getCacheDir(): string {
@@ -201,8 +287,8 @@ function getOpenRouterCachePath(): string {
 }
 
 function loadCachedOpenRouterPricing(): CachedOpenRouterPricing | null {
+  const cachePath = getOpenRouterCachePath();
   try {
-    const cachePath = getOpenRouterCachePath();
     if (!fs.existsSync(cachePath)) {
       return null;
     }
@@ -210,14 +296,24 @@ function loadCachedOpenRouterPricing(): CachedOpenRouterPricing | null {
     const content = fs.readFileSync(cachePath, "utf-8");
     const cached = JSON.parse(content) as CachedOpenRouterPricing;
 
-    // Check TTL (same as LiteLLM)
+    if (!Number.isFinite(cached?.timestamp) || typeof cached?.data !== "object" || cached.data === null || Array.isArray(cached.data)) {
+      fs.unlinkSync(cachePath);
+      return null;
+    }
+
+    if (Object.keys(cached.data).length === 0) {
+      fs.unlinkSync(cachePath);
+      return null;
+    }
+
     const age = Date.now() - cached.timestamp;
     if (age > CACHE_TTL_MS) {
-      return null; // Cache expired
+      return null;
     }
 
     return cached;
   } catch {
+    try { fs.unlinkSync(cachePath); } catch {}
     return null;
   }
 }
@@ -240,76 +336,99 @@ function saveOpenRouterCachedPricing(data: Record<string, LiteLLMModelPricing>):
   }
 }
 
-/**
- * Fetch endpoints for a specific OpenRouter model and extract author provider pricing
- * @param author - Provider/author from model ID (e.g., "z-ai")
- * @param slug - Model name (e.g., "glm-4.7")
- * @returns Pricing from author provider, or null if not found
- */
-function fetchModelEndpoints(
+function parsePrice(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") return null;
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num < 0) return null;
+    return num;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) return null;
+    return value;
+  }
+  return null;
+}
+
+async function fetchModelEndpoints(
   author: string,
   slug: string
 ): Promise<LiteLLMModelPricing | null> {
-  return new Promise((resolve) => {
-    const url = `https://openrouter.ai/api/v1/models/${author}/${slug}/endpoints`;
+  const url = `https://openrouter.ai/api/v1/models/${author}/${slug}/endpoints`;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
 
-    fetch(url, { signal: controller.signal })
-      .then((response) => {
-        clearTimeout(timeoutId);
+  let response: Response;
+  try {
+    response = await fetchWithRetry(url, { headers, timeoutMs: 10000 });
+  } catch (err) {
+    if (process.env.DEBUG) {
+      console.warn(`[OpenRouter] Fetch failed for ${author}/${slug}:`, (err as Error).message || err);
+    }
+    return null;
+  }
 
-        if (!response.ok) {
-          return null;
-        }
+  if (!response.ok) {
+    if (process.env.DEBUG) {
+      console.warn(`[OpenRouter] HTTP ${response.status} for ${author}/${slug}`);
+    }
+    return null;
+  }
 
-        return response.json() as Promise<OpenRouterEndpointsResponse>;
-      })
-      .then((apiResponse) => {
-        if (!apiResponse) {
-          resolve(null);
-          return;
-        }
+  const apiResponse = await response.json() as OpenRouterEndpointsResponse;
 
-        const expectedProvider = OPENROUTER_PROVIDER_NAME_MAPPING[author.toLowerCase()] || author;
+  if (!apiResponse?.data?.endpoints || !Array.isArray(apiResponse.data.endpoints)) {
+    if (process.env.DEBUG) {
+      console.warn(`[OpenRouter] Invalid response shape for ${author}/${slug}`);
+    }
+    return null;
+  }
 
-        // Find endpoint from author provider (case-insensitive match)
-        const authorEndpoint = apiResponse.data.endpoints.find(
-          endpoint => endpoint.provider_name.toLowerCase() === expectedProvider.toLowerCase()
-        );
+  const expectedProvider = OPENROUTER_PROVIDER_NAME_MAPPING[author.toLowerCase()] || author;
 
-        if (!authorEndpoint) {
-          if (process.env.DEBUG) {
-            console.warn(`[OpenRouter] Author provider "${expectedProvider}" not found for ${author}/${slug}`);
-          }
-          resolve(null);
-          return;
-        }
+  const authorEndpoint = apiResponse.data.endpoints.find(
+    endpoint => endpoint.provider_name?.toLowerCase() === expectedProvider.toLowerCase()
+  );
 
-        // Convert to LiteLLM format
-        resolve({
-          input_cost_per_token: parseFloat(authorEndpoint.pricing.prompt) || 0,
-          output_cost_per_token: parseFloat(authorEndpoint.pricing.completion) || 0,
-          cache_read_input_token_cost: authorEndpoint.pricing.input_cache_read
-            ? parseFloat(authorEndpoint.pricing.input_cache_read)
-            : undefined,
-          cache_creation_input_token_cost: authorEndpoint.pricing.input_cache_write
-            ? parseFloat(authorEndpoint.pricing.input_cache_write)
-            : undefined,
-        });
-      })
-      .catch(() => {
-        resolve(null);
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-      });
-  });
+  if (!authorEndpoint) {
+    if (process.env.DEBUG) {
+      console.warn(`[OpenRouter] Author provider "${expectedProvider}" not found for ${author}/${slug}`);
+    }
+    return null;
+  }
+
+  const inputCost = parsePrice(authorEndpoint.pricing?.prompt);
+  const outputCost = parsePrice(authorEndpoint.pricing?.completion);
+
+  if (inputCost === null || outputCost === null) {
+    if (process.env.DEBUG) {
+      const reason = String(authorEndpoint.pricing?.prompt) === "-1" || String(authorEndpoint.pricing?.completion) === "-1"
+        ? "pricing unavailable (TBD)"
+        : "invalid pricing values";
+      console.warn(`[OpenRouter] ${reason} for ${author}/${slug}`);
+    }
+    return null;
+  }
+
+  return {
+    input_cost_per_token: inputCost,
+    output_cost_per_token: outputCost,
+    cache_read_input_token_cost: parsePrice(authorEndpoint.pricing?.input_cache_read) ?? undefined,
+    cache_creation_input_token_cost: parsePrice(authorEndpoint.pricing?.input_cache_write) ?? undefined,
+  };
 }
 
 export class PricingFetcher {
   private pricingData: PricingDataset | null = null;
+  private sortedPricingKeys: string[] | null = null;
   private openRouterData: Record<string, LiteLLMModelPricing> | null = null;
 
   /**
@@ -326,6 +445,7 @@ export class PricingFetcher {
     // Load LiteLLM from cache or fetch
     if (cachedLiteLLM) {
       this.pricingData = cachedLiteLLM.data;
+      this.sortedPricingKeys = Object.keys(this.pricingData).sort();
     }
 
     // Load OpenRouter from cache or fetch
@@ -347,13 +467,18 @@ export class PricingFetcher {
 
     if (!this.openRouterData) {
       promises.push(
-        this.fetchOpenRouterPricing().catch(() => {
-          // Ignore OpenRouter fetch errors - it's a fallback
+        this.fetchOpenRouterPricing().catch((err) => {
+          if (process.env.DEBUG) {
+            console.warn("[OpenRouter] Fallback pricing fetch failed:", err.message || err);
+          }
+          this.openRouterData = {};
         })
       );
     }
 
     await Promise.all(promises);
+
+    this.openRouterData ??= {};
 
     // Ensure pricingData is set (should always be true at this point)
     if (!this.pricingData) {
@@ -363,27 +488,16 @@ export class PricingFetcher {
     return this.pricingData;
   }
 
-  /**
-   * Fetch LiteLLM pricing from network
-   */
   private async fetchLiteLLMPricing(): Promise<PricingDataset> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    let response: Response;
-    try {
-      response = await fetch(LITELLM_PRICING_URL, { signal: controller.signal });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const response = await fetchWithRetry(LITELLM_PRICING_URL);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch pricing: ${response.status}`);
     }
 
     this.pricingData = (await response.json()) as PricingDataset;
+    this.sortedPricingKeys = Object.keys(this.pricingData).sort();
 
-    // Save to cache
     saveCachedPricing(this.pricingData);
 
     return this.pricingData;
@@ -452,7 +566,7 @@ export class PricingFetcher {
     }
 
     // Try with provider prefix
-    const prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+    const prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
     for (const prefix of prefixes) {
       if (this.pricingData[prefix + modelID]) {
         return this.pricingData[prefix + modelID];
@@ -473,7 +587,7 @@ export class PricingFetcher {
 
     const lowerModelID = modelID.toLowerCase();
     const lowerNormalized = normalized?.toLowerCase();
-    const sortedKeys = Object.keys(this.pricingData).sort();
+    const sortedKeys = this.sortedPricingKeys || Object.keys(this.pricingData).sort();
 
     for (const key of sortedKeys) {
       const lowerKey = key.toLowerCase();
@@ -497,6 +611,123 @@ export class PricingFetcher {
 
     // Fallback to OpenRouter for mapped models
     return this.getOpenRouterPricing(modelID);
+  }
+
+  getModelPricingWithSource(modelID: string): PricingLookupResult | null {
+    if (!this.pricingData) return null;
+
+    if (this.pricingData[modelID]) {
+      return { pricing: this.pricingData[modelID], source: "litellm", matchedKey: modelID };
+    }
+
+    const prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
+    for (const prefix of prefixes) {
+      const key = prefix + modelID;
+      if (this.pricingData[key]) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    const normalized = normalizeModelName(modelID);
+    if (normalized) {
+      if (this.pricingData[normalized]) {
+        return { pricing: this.pricingData[normalized], source: "litellm", matchedKey: normalized };
+      }
+      for (const prefix of prefixes) {
+        const key = prefix + normalized;
+        if (this.pricingData[key]) {
+          return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+        }
+      }
+    }
+
+    const lowerModelID = modelID.toLowerCase();
+    const lowerNormalized = normalized?.toLowerCase();
+    const sortedKeys = this.sortedPricingKeys || Object.keys(this.pricingData).sort();
+
+    for (const key of sortedKeys) {
+      const lowerKey = key.toLowerCase();
+      if (isWordBoundaryMatch(lowerKey, lowerModelID)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+      if (lowerNormalized && isWordBoundaryMatch(lowerKey, lowerNormalized)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    for (const key of sortedKeys) {
+      const lowerKey = key.toLowerCase();
+      if (isWordBoundaryMatch(lowerModelID, lowerKey)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+      if (lowerNormalized && isWordBoundaryMatch(lowerNormalized, lowerKey)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    return this.getOpenRouterPricingWithSource(modelID);
+  }
+
+  getModelPricingFromProvider(modelID: string, provider: PricingSource): PricingLookupResult | null {
+    if (provider === "litellm") {
+      return this.getLiteLLMPricingWithSource(modelID);
+    }
+    return this.getOpenRouterPricingWithSource(modelID);
+  }
+
+  private getLiteLLMPricingWithSource(modelID: string): PricingLookupResult | null {
+    if (!this.pricingData) return null;
+
+    if (this.pricingData[modelID]) {
+      return { pricing: this.pricingData[modelID], source: "litellm", matchedKey: modelID };
+    }
+
+    const prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
+    for (const prefix of prefixes) {
+      const key = prefix + modelID;
+      if (this.pricingData[key]) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    const normalized = normalizeModelName(modelID);
+    if (normalized) {
+      if (this.pricingData[normalized]) {
+        return { pricing: this.pricingData[normalized], source: "litellm", matchedKey: normalized };
+      }
+      for (const prefix of prefixes) {
+        const key = prefix + normalized;
+        if (this.pricingData[key]) {
+          return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+        }
+      }
+    }
+
+    const lowerModelID = modelID.toLowerCase();
+    const lowerNormalized = normalized?.toLowerCase();
+    const sortedKeys = this.sortedPricingKeys || Object.keys(this.pricingData).sort();
+
+    for (const key of sortedKeys) {
+      const lowerKey = key.toLowerCase();
+      if (isWordBoundaryMatch(lowerKey, lowerModelID)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+      if (lowerNormalized && isWordBoundaryMatch(lowerKey, lowerNormalized)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    for (const key of sortedKeys) {
+      const lowerKey = key.toLowerCase();
+      if (isWordBoundaryMatch(lowerModelID, lowerKey)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+      if (lowerNormalized && isWordBoundaryMatch(lowerNormalized, lowerKey)) {
+        return { pricing: this.pricingData[key], source: "litellm", matchedKey: key };
+      }
+    }
+
+    return null;
   }
 
   calculateCost(
@@ -566,62 +797,43 @@ export class PricingFetcher {
     }
 
     this.openRouterData = normalizedData;
-    saveOpenRouterCachedPricing(this.openRouterData);
+
+    if (Object.keys(normalizedData).length > 0) {
+      saveOpenRouterCachedPricing(this.openRouterData);
+    }
 
     return this.openRouterData;
   }
 
-  /**
-   * Look up pricing in OpenRouter using manual mapping
-   */
   private getOpenRouterPricing(modelID: string): LiteLLMModelPricing | null {
+    const result = this.getOpenRouterPricingWithSource(modelID);
+    return result?.pricing ?? null;
+  }
+
+  private getOpenRouterPricingWithSource(modelID: string): PricingLookupResult | null {
     if (!this.openRouterData) return null;
 
-    // Check manual mapping
-    const lowerModelID = modelID.toLowerCase();
+    let lowerModelID = modelID.toLowerCase();
+
+    const prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
+    for (const prefix of prefixes) {
+      if (lowerModelID.startsWith(prefix)) {
+        lowerModelID = lowerModelID.slice(prefix.length);
+        break;
+      }
+    }
+
     const openRouterID = OPENROUTER_MODEL_MAPPING[lowerModelID];
 
     if (openRouterID && this.openRouterData[openRouterID]) {
-      return this.openRouterData[openRouterID];
+      return {
+        pricing: this.openRouterData[openRouterID],
+        source: "openrouter",
+        matchedKey: openRouterID,
+      };
     }
 
     return null;
-  }
-
-  /**
-   * Get model pricing with OpenRouter fallback
-   * First tries LiteLLM, then falls back to OpenRouter for mapped models
-   */
-  async getModelPricingWithFallback(modelID: string): Promise<LiteLLMModelPricing | null> {
-    // First try LiteLLM (existing logic)
-    const liteLLMPricing = this.getModelPricing(modelID);
-    if (liteLLMPricing) {
-      return liteLLMPricing;
-    }
-
-    // Fallback to OpenRouter for mapped models only
-    const lowerModelID = modelID.toLowerCase();
-    const openRouterID = OPENROUTER_MODEL_MAPPING[lowerModelID];
-
-    if (!openRouterID) {
-      // Model not in manual mapping, no fallback available
-      if (process.env.DEBUG) {
-        console.warn(`[OpenRouter] No mapping found for model: ${modelID}`);
-      }
-      return null;
-    }
-
-    // Fetch OpenRouter data (lazily, only when needed)
-    try {
-      await this.fetchOpenRouterPricing(openRouterID);
-      return this.getOpenRouterPricing(modelID);
-    } catch (error) {
-      // OpenRouter fetch failed, return null
-      if (process.env.DEBUG) {
-        console.warn(`[OpenRouter] Failed to fetch pricing for ${openRouterID}:`, error);
-      }
-      return null;
-    }
   }
 }
 

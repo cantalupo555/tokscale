@@ -91,7 +91,7 @@ impl PricingData {
         }
 
         // Try with provider prefixes
-        let prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+        let prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
         for prefix in prefixes {
             let key = format!("{}{}", prefix, model_id);
             if let Some(pricing) = self.models.get(&key) {
@@ -167,7 +167,7 @@ impl PricingData {
         }
 
         // Try with provider prefixes
-        let prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+        let prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
         for prefix in prefixes {
             let key = format!("{}{}", prefix, model_id);
             if self.models.contains_key(&key) {

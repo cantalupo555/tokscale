@@ -14,7 +14,7 @@ import pc from "picocolors";
 import { login, logout, whoami } from "./auth.js";
 import { submit } from "./submit.js";
 import { generateWrapped } from "./wrapped.js";
-import { PricingFetcher } from "./pricing.js";
+import { PricingFetcher, type PricingLookupResult } from "./pricing.js";
 import {
   loadCursorCredentials,
   saveCursorCredentials,
@@ -407,9 +407,14 @@ async function main() {
       }
     });
 
-  // =========================================================================
-  // Cursor IDE Authentication Commands
-  // =========================================================================
+  program
+    .command("pricing <model-id>")
+    .description("Look up pricing for a model")
+    .option("--json", "Output as JSON")
+    .option("--provider <source>", "Force provider: litellm, openrouter, or auto (default)")
+    .action(async (modelId: string, options: { json?: boolean; provider?: string }) => {
+      await handlePricingCommand(modelId, options);
+    });
 
   const cursorCommand = program
     .command("cursor")
@@ -442,7 +447,7 @@ async function main() {
   // Global flags should go to main program
   const isGlobalFlag = ['--help', '-h', '--version', '-V'].includes(firstArg);
   const hasSubcommand = args.length > 0 && !firstArg.startsWith('-');
-  const knownCommands = ['monthly', 'models', 'graph', 'wrapped', 'login', 'logout', 'whoami', 'submit', 'cursor', 'tui', 'help'];
+  const knownCommands = ['monthly', 'models', 'graph', 'wrapped', 'login', 'logout', 'whoami', 'submit', 'cursor', 'tui', 'pricing', 'help'];
   const isKnownCommand = hasSubcommand && knownCommands.includes(firstArg);
 
   if (isKnownCommand || isGlobalFlag) {
@@ -985,6 +990,81 @@ async function handleWrappedCommand(options: WrappedCommandOptions) {
     }
     process.exit(1);
   }
+}
+
+async function handlePricingCommand(modelId: string, options: { json?: boolean; provider?: string }) {
+  const provider = options.provider?.toLowerCase();
+  if (provider && provider !== "auto" && provider !== "litellm" && provider !== "openrouter") {
+    console.log(pc.red(`\n  Invalid provider: ${options.provider}`));
+    console.log(pc.gray("  Valid options: litellm, openrouter, auto\n"));
+    process.exit(1);
+  }
+
+  const spinner = createSpinner({ color: "cyan" });
+  spinner.start(pc.gray("Fetching pricing data..."));
+
+  const fetcher = new PricingFetcher();
+  await fetcher.fetchPricing();
+
+  spinner.stop();
+
+  let result: PricingLookupResult | null;
+  if (provider === "litellm") {
+    result = fetcher.getModelPricingFromProvider(modelId, "litellm");
+  } else if (provider === "openrouter") {
+    result = fetcher.getModelPricingFromProvider(modelId, "openrouter");
+  } else {
+    result = fetcher.getModelPricingWithSource(modelId);
+  }
+
+  if (!result) {
+    if (options.json) {
+      console.log(JSON.stringify({ error: "Model not found", modelId, provider: provider || "auto" }, null, 2));
+    } else {
+      const providerNote = provider && provider !== "auto" ? ` (in ${provider})` : "";
+      console.log(pc.red(`\n  Model not found: ${modelId}${providerNote}\n`));
+    }
+    process.exit(1);
+  }
+
+  if (options.json) {
+    console.log(JSON.stringify({
+      modelId,
+      matchedKey: result.matchedKey,
+      source: result.source,
+      pricing: {
+        inputCostPerToken: result.pricing.input_cost_per_token ?? 0,
+        outputCostPerToken: result.pricing.output_cost_per_token ?? 0,
+        cacheReadInputTokenCost: result.pricing.cache_read_input_token_cost,
+        cacheCreationInputTokenCost: result.pricing.cache_creation_input_token_cost,
+      },
+    }, null, 2));
+  } else {
+    const sourceLabel = result.source === "litellm" ? pc.blue("LiteLLM") : pc.magenta("OpenRouter");
+    const inputCost = result.pricing.input_cost_per_token ?? 0;
+    const outputCost = result.pricing.output_cost_per_token ?? 0;
+    const cacheReadCost = result.pricing.cache_read_input_token_cost;
+    const cacheWriteCost = result.pricing.cache_creation_input_token_cost;
+
+    console.log(pc.cyan(`\n  Pricing for: ${pc.white(modelId)}`));
+    console.log(pc.gray(`  Matched key: ${result.matchedKey}`));
+    console.log(pc.gray(`  Source: `) + sourceLabel);
+    console.log();
+    console.log(pc.white(`  Input:  `) + formatPricePerMillion(inputCost));
+    console.log(pc.white(`  Output: `) + formatPricePerMillion(outputCost));
+    if (cacheReadCost !== undefined) {
+      console.log(pc.white(`  Cache Read:  `) + formatPricePerMillion(cacheReadCost));
+    }
+    if (cacheWriteCost !== undefined) {
+      console.log(pc.white(`  Cache Write: `) + formatPricePerMillion(cacheWriteCost));
+    }
+    console.log();
+  }
+}
+
+function formatPricePerMillion(costPerToken: number): string {
+  const perMillion = costPerToken * 1_000_000;
+  return pc.green(`$${perMillion.toFixed(2)}`) + pc.gray(" / 1M tokens");
 }
 
 function getSourceLabel(source: string): string {

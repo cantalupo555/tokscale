@@ -68,7 +68,7 @@ function buildPricingLookup(pricing: PricingEntry[]): PricingLookup {
   }
 
   const sortedKeys = [...map.keys()].sort();
-  const prefixes = ["anthropic/", "openai/", "google/", "bedrock/"];
+  const prefixes = ["anthropic/", "openai/", "google/", "bedrock/", "openrouter/"];
 
   return {
     get(modelId: string): PricingInfo | undefined {
