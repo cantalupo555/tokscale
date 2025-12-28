@@ -7,10 +7,6 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export function normalizeModelName(modelId: string): string | null {
   const lower = modelId.toLowerCase();
 
@@ -71,25 +67,9 @@ export function isWordBoundaryMatch(haystack: string, needle: string): boolean {
 const LITELLM_PRICING_URL =
   "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/models";
 const OPENROUTER_CACHE_FILENAME = "openrouter-pricing.json";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-
-// OpenRouter API response types
-export interface OpenRouterModel {
-  id: string; // e.g., "z-ai/glm-4.7"
-  pricing: {
-    prompt: string; // Cost per token as string
-    completion: string;
-    input_cache_read?: string;
-    input_cache_write?: string;
-  };
-}
-
-export interface OpenRouterResponse {
-  data: OpenRouterModel[];
-}
 
 /**
  * Response from /api/v1/models/{author}/{slug}/endpoints
@@ -121,6 +101,12 @@ export const OPENROUTER_MODEL_MAPPING: Record<string, string> = {
   // GLM models - Z-AI is the primary/author provider
   "glm-4.7": "z-ai/glm-4.7",
   "glm-4-7": "z-ai/glm-4.7",
+};
+
+// Mapping for author names that don't match provider names exactly
+// Used to find the correct provider endpoint in OpenRouter API
+const OPENROUTER_PROVIDER_NAME_MAPPING: Record<string, string> = {
+  "z-ai": "Z.AI",
 };
 
 export interface LiteLLMModelPricing {
@@ -255,22 +241,6 @@ function saveOpenRouterCachedPricing(data: Record<string, LiteLLMModelPricing>):
 }
 
 /**
- * Convert OpenRouter pricing (string values) to LiteLLM format (number values)
- */
-function convertOpenRouterToLiteLLM(model: OpenRouterModel): LiteLLMModelPricing {
-  return {
-    input_cost_per_token: parseFloat(model.pricing.prompt) || 0,
-    output_cost_per_token: parseFloat(model.pricing.completion) || 0,
-    cache_read_input_token_cost: model.pricing.input_cache_read
-      ? parseFloat(model.pricing.input_cache_read)
-      : undefined,
-    cache_creation_input_token_cost: model.pricing.input_cache_write
-      ? parseFloat(model.pricing.input_cache_write)
-      : undefined,
-  };
-}
-
-/**
  * Fetch endpoints for a specific OpenRouter model and extract author provider pricing
  * @param author - Provider/author from model ID (e.g., "z-ai")
  * @param slug - Model name (e.g., "glm-4.7")
@@ -291,7 +261,6 @@ function fetchModelEndpoints(
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          console.warn(`Failed to fetch endpoints for ${author}/${slug}: ${response.status}`);
           return null;
         }
 
@@ -303,12 +272,7 @@ function fetchModelEndpoints(
           return;
         }
 
-        // Mapping for author names that don't match provider names exactly
-        const providerNameMapping: Record<string, string> = {
-          "z-ai": "Z.AI",
-        };
-
-        const expectedProvider = providerNameMapping[author.toLowerCase()] || author;
+        const expectedProvider = OPENROUTER_PROVIDER_NAME_MAPPING[author.toLowerCase()] || author;
 
         // Find endpoint from author provider (case-insensitive match)
         const authorEndpoint = apiResponse.data.endpoints.find(
@@ -316,7 +280,9 @@ function fetchModelEndpoints(
         );
 
         if (!authorEndpoint) {
-          console.warn(`No endpoint found for provider "${author}" in model ${author}/${slug}`);
+          if (process.env.DEBUG) {
+            console.warn(`[OpenRouter] Author provider "${expectedProvider}" not found for ${author}/${slug}`);
+          }
           resolve(null);
           return;
         }
@@ -639,6 +605,9 @@ export class PricingFetcher {
 
     if (!openRouterID) {
       // Model not in manual mapping, no fallback available
+      if (process.env.DEBUG) {
+        console.warn(`[OpenRouter] No mapping found for model: ${modelID}`);
+      }
       return null;
     }
 
@@ -646,8 +615,11 @@ export class PricingFetcher {
     try {
       await this.fetchOpenRouterPricing(openRouterID);
       return this.getOpenRouterPricing(modelID);
-    } catch {
+    } catch (error) {
       // OpenRouter fetch failed, return null
+      if (process.env.DEBUG) {
+        console.warn(`[OpenRouter] Failed to fetch pricing for ${openRouterID}:`, error);
+      }
       return null;
     }
   }
