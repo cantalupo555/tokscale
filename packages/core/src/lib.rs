@@ -10,12 +10,13 @@ use napi_derive::napi;
 mod aggregator;
 mod parser;
 mod pricing;
+mod pricing_legacy;
 mod scanner;
 mod sessions;
 
 pub use aggregator::*;
 pub use parser::*;
-pub use pricing::PricingData;
+pub use pricing_legacy::PricingData;
 pub use scanner::*;
 
 /// Version of the native module
@@ -491,7 +492,7 @@ fn build_pricing_data(entries: &[PricingEntry]) -> PricingData {
     for entry in entries {
         pricing_data.add_model(
             entry.model_id.clone(),
-            pricing::ModelPricing {
+            pricing_legacy::ModelPricing {
                 input_cost_per_token: entry.pricing.input_cost_per_token,
                 output_cost_per_token: entry.pricing.output_cost_per_token,
                 cache_read_input_token_cost: entry
@@ -1479,4 +1480,49 @@ pub fn finalize_graph(options: FinalizeGraphOptions) -> napi::Result<GraphResult
     let result = aggregator::generate_graph_result(contributions, processing_time_ms);
 
     Ok(result)
+}
+
+// =============================================================================
+// New Pricing API (Rust-native pricing fetching)
+// =============================================================================
+
+#[napi(object)]
+pub struct NativePricing {
+    pub input_cost_per_token: f64,
+    pub output_cost_per_token: f64,
+    pub cache_read_input_token_cost: Option<f64>,
+    pub cache_creation_input_token_cost: Option<f64>,
+}
+
+#[napi(object)]
+pub struct PricingLookupResult {
+    pub model_id: String,
+    pub matched_key: String,
+    pub source: String,
+    pub pricing: NativePricing,
+}
+
+#[napi]
+pub async fn lookup_pricing(model_id: String) -> napi::Result<PricingLookupResult> {
+    let service = pricing::PricingService::fetch()
+        .await
+        .map_err(|e| napi::Error::from_reason(e))?;
+
+    match service.lookup(&model_id) {
+        Some(result) => Ok(PricingLookupResult {
+            model_id,
+            matched_key: result.matched_key,
+            source: result.source,
+            pricing: NativePricing {
+                input_cost_per_token: result.pricing.input_cost_per_token.unwrap_or(0.0),
+                output_cost_per_token: result.pricing.output_cost_per_token.unwrap_or(0.0),
+                cache_read_input_token_cost: result.pricing.cache_read_input_token_cost,
+                cache_creation_input_token_cost: result.pricing.cache_creation_input_token_cost,
+            },
+        }),
+        None => Err(napi::Error::from_reason(format!(
+            "Model not found: {}",
+            model_id
+        ))),
+    }
 }
