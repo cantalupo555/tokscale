@@ -50,16 +50,21 @@ pub fn save_cache<T: Serialize>(filename: &str, data: &T) -> Result<(), std::io:
     let cached = CachedData { timestamp: now, data };
     let content = serde_json::to_string(&cached)?;
     
-    // Atomic write: write to temp file first, then rename
-    // This prevents corruption from concurrent writes or crashes
     let final_path = get_cache_path(filename);
-    let tmp_path = final_path.with_extension("tmp");
+    let tmp_filename = format!(".{}.{}.tmp", filename, std::process::id());
+    let tmp_path = dir.join(&tmp_filename);
     
     use std::io::Write;
-    let mut file = fs::File::create(&tmp_path)?;
-    file.write_all(content.as_bytes())?;
-    file.sync_all()?;  // Ensure data is flushed to disk
+    let write_result = (|| {
+        let mut file = fs::File::create(&tmp_path)?;
+        file.write_all(content.as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&tmp_path, &final_path)
+    })();
     
-    // Atomic rename (POSIX guarantees atomicity for same-filesystem renames)
-    fs::rename(&tmp_path, &final_path)
+    if write_result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+    }
+    
+    write_result
 }

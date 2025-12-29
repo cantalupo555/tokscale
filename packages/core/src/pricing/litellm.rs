@@ -40,6 +40,7 @@ pub async fn fetch() -> Result<PricingDataset, reqwest::Error> {
                 
                 if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
                     eprintln!("[tokscale] LiteLLM HTTP {} (attempt {}/{})", status, attempt + 1, MAX_RETRIES);
+                    let _ = response.bytes().await;
                     if attempt < MAX_RETRIES - 1 {
                         tokio::time::sleep(std::time::Duration::from_millis(
                             INITIAL_BACKOFF_MS * (1 << attempt)

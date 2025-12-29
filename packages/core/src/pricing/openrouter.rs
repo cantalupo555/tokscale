@@ -64,6 +64,7 @@ async fn fetch_model_endpoints(
         let status = response.status();
         if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
             last_error = Some(format!("HTTP {}", status));
+            let _ = response.bytes().await;
             if attempt < MAX_RETRIES - 1 {
                 tokio::time::sleep(std::time::Duration::from_millis(
                     INITIAL_BACKOFF_MS * (1 << attempt)
