@@ -144,13 +144,23 @@ function calculateLongestSession(messages: Array<{ sessionId: string; timestamp:
   return `${totalSeconds}s`;
 }
 
-async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilters): Promise<TUIData> {
+async function loadData(
+  enabledSources: Set<SourceType>, 
+  dateFilters?: DateFilters,
+  setPhase?: (phase: LoadingPhase) => void
+): Promise<TUIData> {
   const sources = Array.from(enabledSources);
   const localSources = sources.filter(s => s !== "cursor");
   const includeCursor = sources.includes("cursor");
   const { since, until, year } = dateFilters ?? {};
 
   const pricingFetcher = new PricingFetcher();
+  
+  if (includeCursor && loadCursorCredentials()) {
+    setPhase?.("syncing-cursor");
+  } else if (localSources.length > 0) {
+    setPhase?.("parsing-sources");
+  }
   
   const phase1Results = await Promise.allSettled([
     includeCursor && loadCursorCredentials() ? syncCursorCache() : Promise.resolve({ synced: false, rows: 0 }),
@@ -166,6 +176,7 @@ async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilte
     ? phase1Results[1].value 
     : null;
 
+  setPhase?.("loading-pricing");
   const modelIds = localMessages?.messages.map(m => m.modelId) ?? [];
   await pricingFetcher.fetchPricingForModels(modelIds);
 
@@ -180,6 +191,7 @@ async function loadData(enabledSources: Set<SourceType>, dateFilters?: DateFilte
     processingTimeMs: 0,
   };
 
+  setPhase?.("finalizing-report");
   const phase2Results = await Promise.allSettled([
     finalizeReportAsync({
       localMessages: localMessages || emptyMessages,
@@ -494,20 +506,20 @@ export function useData(enabledSources: Accessor<Set<SourceType>>, dateFilters?:
         setData(cachedData);
         setLoading(false);
         setIsRefreshing(true);
-        setLoadingPhase("loading-pricing");
+        setLoadingPhase("idle");
       } else {
         setLoading(true);
-        setLoadingPhase("loading-pricing");
+        setLoadingPhase("idle");
       }
     } else {
       setIsRefreshing(true);
-      setLoadingPhase("loading-pricing");
+      setLoadingPhase("idle");
       setForceRefresh(false);
     }
     
     const requestId = currentRequestId;
     setError(null);
-    loadData(sources, dateFilters)
+    loadData(sources, dateFilters, setLoadingPhase)
       .then((freshData) => {
         if (requestId !== currentRequestId) return;
         setData(freshData);
