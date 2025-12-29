@@ -12,7 +12,8 @@ const MIN_FUZZY_MATCH_LEN: usize = 5;
 
 /// Quality/speed tier suffixes that should be stripped for pricing lookup
 /// These indicate provider-specific routing but don't affect the base model pricing
-const TIER_SUFFIXES: &[&str] = &["-low", "-high", "-medium", "-free", ":low", ":high", ":medium", ":free"];
+/// Note: OpenCode Zen uses -xhigh suffix for extra-high quality tier
+const TIER_SUFFIXES: &[&str] = &["-xhigh", "-low", "-high", "-medium", "-free", ":low", ":high", ":medium", ":free"];
 
 pub struct PricingLookup {
     litellm: HashMap<String, ModelPricing>,
@@ -935,6 +936,22 @@ mod tests {
     }
     
     #[test]
+    fn test_tier_suffix_xhigh() {
+        let lookup = create_lookup();
+        let result = lookup.lookup("gpt-5.2-xhigh").unwrap();
+        assert_eq!(result.matched_key, "gpt-5.2");
+        assert_eq!(result.source, "LiteLLM");
+    }
+    
+    #[test]
+    fn test_tier_suffix_xhigh_codex_max() {
+        let lookup = create_lookup();
+        let result = lookup.lookup("gpt-5.1-codex-max-xhigh").unwrap();
+        assert_eq!(result.matched_key, "gpt-5.1-codex-max");
+        assert_eq!(result.source, "LiteLLM");
+    }
+    
+    #[test]
     fn test_normalize_opus_4_5() {
         let lookup = create_lookup();
         let result = lookup.lookup("opus-4-5").unwrap();
@@ -1006,6 +1023,8 @@ mod tests {
         assert_eq!(strip_tier_suffix("model-free"), Some("model"));
         assert_eq!(strip_tier_suffix("model:low"), Some("model"));
         assert_eq!(strip_tier_suffix("model:high"), Some("model"));
+        assert_eq!(strip_tier_suffix("gpt-5.2-xhigh"), Some("gpt-5.2"));
+        assert_eq!(strip_tier_suffix("gpt-5.1-codex-max-xhigh"), Some("gpt-5.1-codex-max"));
         assert_eq!(strip_tier_suffix("gpt-4o"), None);
         assert_eq!(strip_tier_suffix("claude-3-5-sonnet"), None);
     }
