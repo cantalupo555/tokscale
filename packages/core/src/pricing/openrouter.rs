@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use serde::Deserialize;
 
 const CACHE_FILENAME: &str = "pricing-openrouter.json";
+const MAX_RETRIES: u32 = 3;
+const INITIAL_BACKOFF_MS: u64 = 200;
 
 #[derive(Deserialize)]
 struct EndpointPricing {
@@ -40,43 +42,102 @@ async fn fetch_model_endpoints(
 ) -> Option<ModelPricing> {
     let url = format!("https://openrouter.ai/api/v1/models/{}/{}/endpoints", author, slug);
     
-    let response = client.get(&url)
-        .header("Content-Type", "application/json")
-        .send()
-        .await
-        .ok()?;
+    let mut last_error: Option<String> = None;
     
-    if !response.status().is_success() {
-        return None;
+    for attempt in 0..MAX_RETRIES {
+        let response = match client.get(&url)
+            .header("Content-Type", "application/json")
+            .send()
+            .await {
+                Ok(r) => r,
+                Err(e) => {
+                    last_error = Some(format!("network error: {}", e));
+                    if attempt < MAX_RETRIES - 1 {
+                        tokio::time::sleep(std::time::Duration::from_millis(
+                            INITIAL_BACKOFF_MS * (1 << attempt)
+                        )).await;
+                    }
+                    continue;
+                }
+            };
+        
+        let status = response.status();
+        if status.is_server_error() || status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            last_error = Some(format!("HTTP {}", status));
+            if attempt < MAX_RETRIES - 1 {
+                tokio::time::sleep(std::time::Duration::from_millis(
+                    INITIAL_BACKOFF_MS * (1 << attempt)
+                )).await;
+            }
+            continue;
+        }
+        
+        if !status.is_success() {
+            eprintln!("[tokscale] OpenRouter {} for {}/{}", status, author, slug);
+            return None;
+        }
+        
+        let data: EndpointsResponse = match response.json().await {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("[tokscale] OpenRouter JSON parse failed for {}/{}: {}", author, slug, e);
+                return None;
+            }
+        };
+        
+        let expected_provider = aliases::OPENROUTER_PROVIDER_NAMES
+            .get(author)
+            .copied()
+            .unwrap_or(author);
+        
+        let endpoint = match data.data.endpoints.iter()
+            .find(|e| e.provider_name.eq_ignore_ascii_case(expected_provider)) {
+                Some(e) => e,
+                None => {
+                    eprintln!("[tokscale] OpenRouter provider '{}' not found for {}/{}", expected_provider, author, slug);
+                    return None;
+                }
+            };
+        
+        let input_cost: f64 = match endpoint.pricing.prompt.trim().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("[tokscale] Invalid input price '{}' for {}/{}", endpoint.pricing.prompt, author, slug);
+                return None;
+            }
+        };
+        
+        let output_cost: f64 = match endpoint.pricing.completion.trim().parse() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("[tokscale] Invalid output price '{}' for {}/{}", endpoint.pricing.completion, author, slug);
+                return None;
+            }
+        };
+        
+        if !input_cost.is_finite() || !output_cost.is_finite() || input_cost < 0.0 || output_cost < 0.0 {
+            eprintln!("[tokscale] Invalid pricing values for {}/{}: input={}, output={}", author, slug, input_cost, output_cost);
+            return None;
+        }
+        
+        return Some(ModelPricing {
+            input_cost_per_token: Some(input_cost),
+            output_cost_per_token: Some(output_cost),
+            cache_read_input_token_cost: endpoint.pricing.input_cache_read
+                .as_ref()
+                .and_then(|s| s.trim().parse().ok())
+                .filter(|v: &f64| v.is_finite() && *v >= 0.0),
+            cache_creation_input_token_cost: endpoint.pricing.input_cache_write
+                .as_ref()
+                .and_then(|s| s.trim().parse().ok())
+                .filter(|v: &f64| v.is_finite() && *v >= 0.0),
+        });
     }
     
-    let data: EndpointsResponse = response.json().await.ok()?;
-    
-    let expected_provider = aliases::OPENROUTER_PROVIDER_NAMES
-        .get(author)
-        .copied()
-        .unwrap_or(author);
-    
-    let endpoint = data.data.endpoints.iter()
-        .find(|e| e.provider_name.eq_ignore_ascii_case(expected_provider))?;
-    
-    let input_cost: f64 = endpoint.pricing.prompt.parse().ok()?;
-    let output_cost: f64 = endpoint.pricing.completion.parse().ok()?;
-    
-    if input_cost < 0.0 || output_cost < 0.0 {
-        return None;
+    if let Some(err) = last_error {
+        eprintln!("[tokscale] OpenRouter fetch failed for {}/{} after {} retries: {}", author, slug, MAX_RETRIES, err);
     }
-    
-    Some(ModelPricing {
-        input_cost_per_token: Some(input_cost),
-        output_cost_per_token: Some(output_cost),
-        cache_read_input_token_cost: endpoint.pricing.input_cache_read
-            .as_ref()
-            .and_then(|s| s.parse().ok()),
-        cache_creation_input_token_cost: endpoint.pricing.input_cache_write
-            .as_ref()
-            .and_then(|s| s.parse().ok()),
-    })
+    None
 }
 
 pub async fn fetch_all_mapped() -> HashMap<String, ModelPricing> {
