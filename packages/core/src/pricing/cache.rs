@@ -31,7 +31,7 @@ pub fn load_cache<T: for<'de> Deserialize<'de>>(filename: &str) -> Option<T> {
         .unwrap()
         .as_secs();
     
-    if now - cached.timestamp > CACHE_TTL_SECS {
+    if cached.timestamp > now || now.saturating_sub(cached.timestamp) > CACHE_TTL_SECS {
         return None;
     }
     
