@@ -156,11 +156,7 @@ async function loadData(
 
   const pricingFetcher = new PricingFetcher();
   
-  if (includeCursor && loadCursorCredentials()) {
-    setPhase?.("syncing-cursor");
-  } else if (localSources.length > 0) {
-    setPhase?.("parsing-sources");
-  }
+  setPhase?.("parsing-sources");
   
   const phase1Results = await Promise.allSettled([
     includeCursor && loadCursorCredentials() ? syncCursorCache() : Promise.resolve({ synced: false, rows: 0 }),

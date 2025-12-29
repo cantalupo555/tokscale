@@ -612,9 +612,7 @@ async function showModelReport(options: FilterOptions & DateFilterOptions & { be
   const localSources: SourceType[] = (enabledSources || ['opencode', 'claude', 'codex', 'gemini', 'cursor', 'amp', 'droid'])
     .filter(s => s !== 'cursor');
 
-  const hasCursorAuth = includeCursor && loadCursorCredentials();
-  const initialPhase = hasCursorAuth ? "Syncing Cursor data..." : "Parsing session files...";
-  spinner?.start(pc.gray(initialPhase));
+  spinner?.start(pc.gray("Scanning session data..."));
 
   const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(
     onlyCursor ? [] : localSources,
@@ -748,9 +746,7 @@ async function showMonthlyReport(options: FilterOptions & DateFilterOptions & { 
     .filter(s => s !== 'cursor');
   const includeCursor = !enabledSources || enabledSources.includes('cursor');
 
-  const hasCursorAuth = includeCursor && loadCursorCredentials();
-  const initialPhase = hasCursorAuth ? "Syncing Cursor data..." : "Parsing session files...";
-  spinner?.start(pc.gray(initialPhase));
+  spinner?.start(pc.gray("Scanning session data..."));
 
   const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(
     localSources,
@@ -910,9 +906,7 @@ async function handleGraphCommand(options: GraphCommandOptions) {
     .filter(s => s !== 'cursor');
   const includeCursor = !enabledSources || enabledSources.includes('cursor');
 
-  const hasCursorAuth = includeCursor && loadCursorCredentials();
-  const initialPhase = hasCursorAuth ? "Syncing Cursor data..." : "Parsing session files...";
-  spinner?.start(pc.gray(initialPhase));
+  spinner?.start(pc.gray("Scanning session data..."));
 
   const { fetcher, cursorSync, localMessages } = await loadDataSourcesParallel(
     localSources,
