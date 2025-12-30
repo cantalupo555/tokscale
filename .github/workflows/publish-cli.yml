@@ -3,6 +3,9 @@ name: Publish
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   DEBUG: napi:*
   APP_NAME: tokscale-core
