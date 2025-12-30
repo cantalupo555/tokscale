@@ -126,12 +126,10 @@ async fn fetch_author_pricing(
         output_cost_per_token: Some(output_cost),
         cache_read_input_token_cost: author_endpoint.pricing.input_cache_read
             .as_ref()
-            .and_then(|s| parse_price(s))
-            .filter(|&v| v > 0.0),
+            .and_then(|s| parse_price(s)),
         cache_creation_input_token_cost: author_endpoint.pricing.input_cache_write
             .as_ref()
-            .and_then(|s| parse_price(s))
-            .filter(|&v| v > 0.0),
+            .and_then(|s| parse_price(s)),
     };
     
     Some((model_id, pricing))
