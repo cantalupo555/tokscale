@@ -734,16 +734,27 @@ pub fn parse_local_sources(options: LocalParseOptions) -> napi::Result<ParsedMes
     let opencode_count = opencode_msgs.len() as i32;
     messages.extend(opencode_msgs);
 
-    // Parse Claude files in parallel
-    let claude_msgs: Vec<ParsedMessage> = scan_result
+    // Parse Claude files in parallel, then deduplicate globally
+    let claude_msgs_raw: Vec<(String, ParsedMessage)> = scan_result
         .claude_files
         .par_iter()
         .flat_map(|path| {
             sessions::claudecode::parse_claude_file(path)
                 .into_iter()
-                .map(|msg| unified_to_parsed(&msg))
+                .map(|msg| {
+                    let dedup_key = msg.dedup_key.clone().unwrap_or_default();
+                    (dedup_key, unified_to_parsed(&msg))
+                })
                 .collect::<Vec<_>>()
         })
+        .collect();
+
+    // Global deduplication across all Claude files
+    let mut seen_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let claude_msgs: Vec<ParsedMessage> = claude_msgs_raw
+        .into_iter()
+        .filter(|(key, _)| key.is_empty() || seen_keys.insert(key.clone()))
+        .map(|(_, msg)| msg)
         .collect();
     let claude_count = claude_msgs.len() as i32;
     messages.extend(claude_msgs);
@@ -876,6 +887,7 @@ fn parsed_to_unified(msg: &ParsedMessage, cost: f64) -> UnifiedMessage {
         },
         cost,
         agent: msg.agent.clone(),
+        dedup_key: None,
     }
 }
 
