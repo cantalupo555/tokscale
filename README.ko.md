@@ -324,7 +324,7 @@ tokscale cursor logout
 | 변수 | 기본값 | 설명 |
 |----------|---------|-------------|
 | `TOKSCALE_NATIVE_TIMEOUT_MS` | `300000` (5분) | 네이티브 서브프로세스 처리 최대 시간 |
-| `TOKSCALE_MAX_OUTPUT_BYTES` | `52428800` (50MB) | 네이티브 서브프로세스의 최대 출력 크기 |
+| `TOKSCALE_MAX_OUTPUT_BYTES` | `104857600` (100MB) | 네이티브 서브프로세스의 최대 출력 크기 |
 
 ```bash
 # 예시: 매우 큰 데이터셋에 대한 타임아웃 증가

@@ -382,7 +382,7 @@ For advanced users with large datasets or specific requirements:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TOKSCALE_NATIVE_TIMEOUT_MS` | `300000` (5 min) | Maximum time for native subprocess processing |
-| `TOKSCALE_MAX_OUTPUT_BYTES` | `52428800` (50MB) | Maximum output size from native subprocess |
+| `TOKSCALE_MAX_OUTPUT_BYTES` | `104857600` (100MB) | Maximum output size from native subprocess |
 
 ```bash
 # Example: Increase timeout for very large datasets
