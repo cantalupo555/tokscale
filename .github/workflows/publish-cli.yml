@@ -19,14 +19,6 @@ jobs:
       version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump patch version
         id: bump
@@ -62,56 +54,22 @@ jobs:
           echo "  cli -> core dep: $(jq -r '.dependencies["@tokscale/core"]' packages/cli/package.json)"
           echo "  tokscale -> cli: $(jq -r '.dependencies["@tokscale/cli"]' packages/tokscale/package.json)"
           
-          # Commit and push
-          git add packages/core/package.json packages/cli/package.json packages/tokscale/package.json
-          git commit -m "chore: bump version to $NEW_VERSION"
-          git push
-          
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Committed and pushed version bump to $NEW_VERSION"
+          echo "📝 Version bump prepared (will commit after successful publish)"
 
-  check-versions:
-    name: Check version changes
-    needs: [bump-versions]
-    runs-on: ubuntu-latest
-    outputs:
-      should-publish: ${{ steps.check.outputs.should-publish }}
-      version: ${{ steps.check.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
+      - name: Upload bumped package.json files
+        uses: actions/upload-artifact@v4
         with:
-          ref: ${{ github.ref }}
-          fetch-depth: 2
-
-      - name: Check version sync and changes
-        id: check
-        run: |
-          CORE_VERSION=$(jq -r '.version' packages/core/package.json)
-          CLI_VERSION=$(jq -r '.version' packages/cli/package.json)
-          ALIAS_VERSION=$(jq -r '.version' packages/tokscale/package.json)
-          
-          echo "📦 Package versions:"
-          echo "  @tokscale/core:  $CORE_VERSION"
-          echo "  @tokscale/cli:   $CLI_VERSION"
-          echo "  tokscale:        $ALIAS_VERSION"
-          
-          # All versions must be in sync
-          if [ "$CORE_VERSION" != "$CLI_VERSION" ] || [ "$CLI_VERSION" != "$ALIAS_VERSION" ]; then
-            echo "❌ ERROR: Package versions are not in sync!"
-            echo "   All packages must have the same version."
-            exit 1
-          fi
-          
-          echo "version=$CORE_VERSION" >> $GITHUB_OUTPUT
-          
-          # Manual trigger with version bump - always publish
-          echo "🚀 Manual trigger with version bump - publishing all packages"
-          echo "should-publish=true" >> $GITHUB_OUTPUT
+          name: bumped-packages
+          path: |
+            packages/core/package.json
+            packages/cli/package.json
+            packages/tokscale/package.json
+          retention-days: 1
 
   build:
     name: Build - ${{ matrix.settings.target }}
-    needs: check-versions
-    if: needs.check-versions.outputs.should-publish == 'true'
+    needs: bump-versions
     runs-on: ${{ matrix.settings.host }}
     strategy:
       fail-fast: false
@@ -162,8 +120,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download bumped package.json files
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.ref }}
+          name: bumped-packages
+          path: packages/
+
+      - name: Restore package.json structure
+        run: |
+          # The artifact preserves the directory structure, move files to correct locations
+          mv packages/core/package.json packages/core/package.json 2>/dev/null || true
+          mv packages/cli/package.json packages/cli/package.json 2>/dev/null || true
+          mv packages/tokscale/package.json packages/tokscale/package.json 2>/dev/null || true
+          echo "📦 Using version: $(jq -r '.version' packages/core/package.json)"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -217,14 +187,17 @@ jobs:
 
   publish-core:
     name: Publish @tokscale/core
-    needs: [check-versions, build]
-    if: needs.check-versions.outputs.should-publish == 'true'
+    needs: [bump-versions, build]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download bumped package.json files
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.ref }}
+          name: bumped-packages
+          path: packages/
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -238,6 +211,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: packages/core/artifacts
+          pattern: bindings-*
 
       - name: Move artifacts
         working-directory: packages/core
@@ -249,20 +223,25 @@ jobs:
 
       - name: Publish @tokscale/core
         working-directory: packages/core
-        run: bun publish --access public
+        run: |
+          echo "📦 Publishing version: $(jq -r '.version' package.json)"
+          bun publish --access public
         env:
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-cli:
     name: Publish @tokscale/cli
-    needs: [check-versions, publish-core]
-    if: needs.check-versions.outputs.should-publish == 'true'
+    needs: [bump-versions, publish-core]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download bumped package.json files
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.ref }}
+          name: bumped-packages
+          path: packages/
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -279,20 +258,25 @@ jobs:
 
       - name: Publish @tokscale/cli
         working-directory: packages/cli
-        run: bun publish --access public
+        run: |
+          echo "📦 Publishing version: $(jq -r '.version' package.json)"
+          bun publish --access public
         env:
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-alias:
     name: Publish tokscale (wrapper)
-    needs: [check-versions, publish-cli]
-    if: needs.check-versions.outputs.should-publish == 'true'
+    needs: [bump-versions, publish-cli]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download bumped package.json files
+        uses: actions/download-artifact@v4
         with:
-          ref: ${{ github.ref }}
+          name: bumped-packages
+          path: packages/
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -301,6 +285,41 @@ jobs:
 
       - name: Publish tokscale
         working-directory: packages/tokscale
-        run: bun publish --access public
+        run: |
+          echo "📦 Publishing version: $(jq -r '.version' package.json)"
+          bun publish --access public
         env:
           NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  finalize:
+    name: Commit version bump
+    needs: [bump-versions, publish-alias]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
+
+      - name: Download bumped package.json files
+        uses: actions/download-artifact@v4
+        with:
+          name: bumped-packages
+          path: packages/
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push version bump
+        run: |
+          NEW_VERSION="${{ needs.bump-versions.outputs.version }}"
+          echo "📦 Committing version bump to $NEW_VERSION"
+          
+          git add packages/core/package.json packages/cli/package.json packages/tokscale/package.json
+          git commit -m "chore: bump version to $NEW_VERSION"
+          git push
+          
+          echo "✅ Successfully published and committed version $NEW_VERSION"
