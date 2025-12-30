@@ -1243,6 +1243,157 @@ pub async fn finalize_graph(options: FinalizeGraphOptions) -> napi::Result<Graph
     Ok(result)
 }
 
+/// Combined result for report and graph (single pricing lookup)
+#[napi(object)]
+pub struct ReportAndGraph {
+    pub report: ModelReport,
+    pub graph: GraphResult,
+}
+
+/// Finalize both report and graph in a single call with shared pricing
+/// This ensures consistent costs between report and graph data
+#[napi]
+pub async fn finalize_report_and_graph(options: FinalizeReportOptions) -> napi::Result<ReportAndGraph> {
+    let start = Instant::now();
+
+    let home_dir = get_home_dir(&options.home_dir)?;
+
+    // Single pricing lookup - shared by both report and graph
+    let pricing = pricing::PricingService::get_or_init()
+        .await
+        .map_err(|e| napi::Error::from_reason(e))?;
+
+    // Convert local messages and apply pricing (once)
+    let mut all_messages: Vec<UnifiedMessage> = options
+        .local_messages
+        .messages
+        .iter()
+        .map(|msg| {
+            let cost = pricing.calculate_cost(
+                &msg.model_id,
+                msg.input,
+                msg.output,
+                msg.cache_read,
+                msg.cache_write,
+                msg.reasoning,
+            );
+            parsed_to_unified(msg, cost)
+        })
+        .collect();
+
+    // Add Cursor messages if enabled
+    if options.include_cursor {
+        let cursor_cache_dir = format!("{}/.config/tokscale/cursor-cache", home_dir);
+        let cursor_files = scanner::scan_directory(&cursor_cache_dir, "*.csv");
+
+        let cursor_messages: Vec<UnifiedMessage> = cursor_files
+            .par_iter()
+            .flat_map(|path| {
+                sessions::cursor::parse_cursor_file(path)
+                    .into_iter()
+                    .map(|mut msg| {
+                        let csv_cost = msg.cost;
+                        let calculated_cost = pricing.calculate_cost(
+                            &msg.model_id,
+                            msg.tokens.input,
+                            msg.tokens.output,
+                            msg.tokens.cache_read,
+                            msg.tokens.cache_write,
+                            msg.tokens.reasoning,
+                        );
+                        msg.cost = if calculated_cost > 0.0 {
+                            calculated_cost
+                        } else {
+                            csv_cost
+                        };
+                        msg
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
+        all_messages.extend(cursor_messages);
+    }
+
+    // Apply date filters
+    if let Some(year) = &options.year {
+        let year_prefix = format!("{}-", year);
+        all_messages.retain(|m| m.date.starts_with(&year_prefix));
+    }
+    if let Some(since) = &options.since {
+        all_messages.retain(|m| m.date.as_str() >= since.as_str());
+    }
+    if let Some(until) = &options.until {
+        all_messages.retain(|m| m.date.as_str() <= until.as_str());
+    }
+
+    // Clone messages for graph aggregation (report consumes for model aggregation)
+    let messages_for_graph = all_messages.clone();
+
+    // --- Generate Report ---
+    let mut model_map: std::collections::HashMap<String, ModelUsage> =
+        std::collections::HashMap::new();
+
+    for msg in all_messages {
+        let key = format!("{}:{}:{}", msg.source, msg.provider_id, msg.model_id);
+        let entry = model_map.entry(key).or_insert_with(|| ModelUsage {
+            source: msg.source.clone(),
+            model: msg.model_id.clone(),
+            provider: msg.provider_id.clone(),
+            input: 0,
+            output: 0,
+            cache_read: 0,
+            cache_write: 0,
+            reasoning: 0,
+            message_count: 0,
+            cost: 0.0,
+        });
+
+        entry.input += msg.tokens.input;
+        entry.output += msg.tokens.output;
+        entry.cache_read += msg.tokens.cache_read;
+        entry.cache_write += msg.tokens.cache_write;
+        entry.reasoning += msg.tokens.reasoning;
+        entry.message_count += 1;
+        entry.cost += msg.cost;
+    }
+
+    let mut entries: Vec<ModelUsage> = model_map.into_values().collect();
+    entries.sort_by(|a, b| match (a.cost.is_nan(), b.cost.is_nan()) {
+        (true, true) => std::cmp::Ordering::Equal,
+        (true, false) => std::cmp::Ordering::Greater,
+        (false, true) => std::cmp::Ordering::Less,
+        (false, false) => b
+            .cost
+            .partial_cmp(&a.cost)
+            .unwrap_or(std::cmp::Ordering::Equal),
+    });
+
+    let total_input: i64 = entries.iter().map(|e| e.input).sum();
+    let total_output: i64 = entries.iter().map(|e| e.output).sum();
+    let total_cache_read: i64 = entries.iter().map(|e| e.cache_read).sum();
+    let total_cache_write: i64 = entries.iter().map(|e| e.cache_write).sum();
+    let total_messages: i32 = entries.iter().map(|e| e.message_count).sum();
+    let total_cost: f64 = entries.iter().map(|e| e.cost).sum();
+
+    let report = ModelReport {
+        entries,
+        total_input,
+        total_output,
+        total_cache_read,
+        total_cache_write,
+        total_messages,
+        total_cost,
+        processing_time_ms: start.elapsed().as_millis() as u32,
+    };
+
+    // --- Generate Graph ---
+    let contributions = aggregator::aggregate_by_date(messages_for_graph);
+    let graph = aggregator::generate_graph_result(contributions, start.elapsed().as_millis() as u32);
+
+    Ok(ReportAndGraph { report, graph })
+}
+
 // =============================================================================
 // New Pricing API (Rust-native pricing fetching)
 // =============================================================================

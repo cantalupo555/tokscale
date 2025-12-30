@@ -614,3 +614,34 @@ export async function finalizeGraphAsync(options: FinalizeOptions): Promise<Toke
   const result = await runInSubprocess<NativeGraphResult>("finalizeGraph", [nativeOptions]);
   return fromNativeResult(result);
 }
+
+export interface ReportAndGraph {
+  report: ModelReport;
+  graph: TokenContributionData;
+}
+
+interface NativeReportAndGraph {
+  report: NativeModelReport;
+  graph: NativeGraphResult;
+}
+
+export async function finalizeReportAndGraphAsync(options: FinalizeOptions): Promise<ReportAndGraph> {
+  if (!isNativeAvailable()) {
+    throw new Error("Native module required. Run: bun run build:core");
+  }
+
+  const nativeOptions: NativeFinalizeReportOptions = {
+    homeDir: undefined,
+    localMessages: options.localMessages,
+    includeCursor: options.includeCursor,
+    since: options.since,
+    until: options.until,
+    year: options.year,
+  };
+
+  const result = await runInSubprocess<NativeReportAndGraph>("finalizeReportAndGraph", [nativeOptions]);
+  return {
+    report: result.report,
+    graph: fromNativeResult(result.graph),
+  };
+}

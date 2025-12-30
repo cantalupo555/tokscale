@@ -84,6 +84,9 @@ async function main() {
     case "finalizeGraph":
       result = await nativeCore.finalizeGraph(args[0] as Parameters<typeof nativeCore.finalizeGraph>[0]);
       break;
+    case "finalizeReportAndGraph":
+      result = await nativeCore.finalizeReportAndGraph(args[0] as Parameters<typeof nativeCore.finalizeReportAndGraph>[0]);
+      break;
     default:
       throw new Error(`Unknown method: ${method}`);
   }

@@ -5,7 +5,7 @@
 
 import pc from "picocolors";
 import { loadCredentials, getApiBaseUrl } from "./credentials.js";
-import { parseLocalSourcesAsync, finalizeGraphAsync, finalizeReportAsync, type ParsedMessages } from "./native.js";
+import { parseLocalSourcesAsync, finalizeReportAndGraphAsync, type ParsedMessages } from "./native.js";
 import { syncCursorCache, loadCursorCredentials } from "./cursor.js";
 import type { TokenContributionData } from "./graph-types.js";
 import { formatCurrency } from "./table.js";
@@ -96,20 +96,16 @@ export async function submit(options: SubmitOptions = {}): Promise<void> {
     ]);
 
     // Phase 2: Finalize with pricing (combines local + cursor)
-    // Call both report and graph in parallel to ensure consistent pricing
-    const finalizeOptions = {
+    // Single subprocess call ensures consistent pricing for both report and graph
+    const { report, graph } = await finalizeReportAndGraphAsync({
       localMessages,
       includeCursor: includeCursor && cursorSync.synced,
       since: options.since,
       until: options.until,
       year: options.year,
-    };
-    const [report, graph] = await Promise.all([
-      finalizeReportAsync(finalizeOptions),
-      finalizeGraphAsync(finalizeOptions),
-    ]);
+    });
 
-    // Use graph structure for submission, but report's cost for consistency with TUI
+    // Use graph structure for submission, report's cost for display
     data = graph;
     data.summary.totalCost = report.totalCost;
   } catch (error) {
