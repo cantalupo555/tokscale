@@ -38,6 +38,28 @@
 
 > **运行 [`bunx tokscale submit`](#社交平台命令) 将您的使用数据提交到排行榜并创建公开个人资料！**
 
+## 概述
+
+**Tokscale** 帮助您监控和分析以下平台的 Token 消耗：
+
+| 图标 | 客户端 | 数据位置 | 支持状态 |
+|------|----------|---------------|-----------|
+| <img width="48px" src=".github/assets/client-opencode.png" alt="OpenCode" /> | [OpenCode](https://github.com/sst/opencode) | `~/.local/share/opencode/storage/message/` | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-claude.jpg" alt="Claude" /> | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/projects/` | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-openai.jpg" alt="Codex" /> | [Codex CLI](https://github.com/openai/codex) | `~/.codex/sessions/` | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-gemini.png" alt="Gemini" /> | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/tmp/*/chats/` | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-cursor.jpg" alt="Cursor" /> | [Cursor IDE](https://cursor.com/) | 通过 `~/.config/tokscale/cursor-cache/` API 同步 | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-amp.png" alt="Amp" /> | [Amp (AmpCode)](https://ampcode.com/) | `~/.local/share/amp/threads/` | ✅ 支持 |
+| <img width="48px" src=".github/assets/client-droid.png" alt="Droid" /> | [Droid (Factory Droid)](https://factory.ai/) | `~/.factory/sessions/` | ✅ 支持 |
+
+使用 [🚅 LiteLLM 的价格数据](https://github.com/BerriAI/litellm)提供实时价格计算，支持分层定价模型和缓存 Token 折扣。
+
+### 为什么叫 "Tokscale"？
+
+这个项目的灵感来自 **[卡尔达肖夫指数(Kardashev Scale)](https://zh.wikipedia.org/wiki/%E5%8D%A1%E5%B0%94%E8%BE%BE%E8%82%96%E5%A4%AB%E6%8C%87%E6%95%B0)**，这是天体物理学家尼古拉·卡尔达肖夫提出的一种根据能源消耗来衡量文明技术发展水平的方法。I 型文明利用其行星上所有可用的能源，II 型文明捕获其恒星的全部输出，III 型文明则掌控整个星系的能源。
+
+在 AI 辅助开发的时代，**Token 就是新的能源**。它们驱动我们的思考，提升我们的生产力，推动我们的创造性产出。正如卡尔达肖夫指数在宇宙尺度上追踪能源消耗，Tokscale 在您攀登 AI 增强开发的阶梯时测量您的 Token 消耗。无论您是休闲用户还是每天消耗数百万 Token，Tokscale 都能帮助您可视化从行星级开发者到银河级代码架构师的旅程。
+
 ## 目录
 
 - [概述](#概述)
@@ -81,28 +103,6 @@
   - [开发指南](#开发指南)
 - [致谢](#致谢)
 - [许可证](#许可证)
-
-## 概述
-
-**Tokscale** 帮助您监控和分析以下平台的 Token 消耗：
-
-| 图标 | 客户端 | 数据位置 | 支持状态 |
-|------|----------|---------------|-----------|
-| <img width="48px" src=".github/assets/client-opencode.png" alt="OpenCode" /> | [OpenCode](https://github.com/sst/opencode) | `~/.local/share/opencode/storage/message/` | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-claude.jpg" alt="Claude" /> | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/projects/` | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-openai.jpg" alt="Codex" /> | [Codex CLI](https://github.com/openai/codex) | `~/.codex/sessions/` | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-gemini.png" alt="Gemini" /> | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/tmp/*/chats/` | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-cursor.jpg" alt="Cursor" /> | [Cursor IDE](https://cursor.com/) | 通过 `~/.config/tokscale/cursor-cache/` API 同步 | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-amp.png" alt="Amp" /> | [Amp (AmpCode)](https://ampcode.com/) | `~/.local/share/amp/threads/` | ✅ 支持 |
-| <img width="48px" src=".github/assets/client-droid.png" alt="Droid" /> | [Droid (Factory Droid)](https://factory.ai/) | `~/.factory/sessions/` | ✅ 支持 |
-
-使用 [🚅 LiteLLM 的价格数据](https://github.com/BerriAI/litellm)提供实时价格计算，支持分层定价模型和缓存 Token 折扣。
-
-### 为什么叫 "Tokscale"？
-
-这个项目的灵感来自 **[卡尔达肖夫指数(Kardashev Scale)](https://zh.wikipedia.org/wiki/%E5%8D%A1%E5%B0%94%E8%BE%BE%E8%82%96%E5%A4%AB%E6%8C%87%E6%95%B0)**，这是天体物理学家尼古拉·卡尔达肖夫提出的一种根据能源消耗来衡量文明技术发展水平的方法。I 型文明利用其行星上所有可用的能源，II 型文明捕获其恒星的全部输出，III 型文明则掌控整个星系的能源。
-
-在 AI 辅助开发的时代，**Token 就是新的能源**。它们驱动我们的思考，提升我们的生产力，推动我们的创造性产出。正如卡尔达肖夫指数在宇宙尺度上追踪能源消耗，Tokscale 在您攀登 AI 增强开发的阶梯时测量您的 Token 消耗。无论您是休闲用户还是每天消耗数百万 Token，Tokscale 都能帮助您可视化从行星级开发者到银河级代码架构师的旅程。
 
 ## 功能
 

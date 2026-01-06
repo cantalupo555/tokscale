@@ -38,6 +38,28 @@
 
 > **[`bunx tokscale submit`](#소셜-플랫폼-명령어)를 실행하여 사용량 데이터를 리더보드에 제출하고 공개 프로필을 만드세요!**
 
+## 개요
+
+**Tokscale**은 아래 플랫폼들의 **토큰 소비량을 수집하고 분석**해 한 눈에 볼 수 있도록 해 줍니다.
+
+| 로고 | 클라이언트 | 데이터 위치 | 지원 여부 |
+|------|----------|---------------|-----------|
+| <img width="48px" src=".github/assets/client-opencode.png" alt="OpenCode" /> | [OpenCode](https://github.com/sst/opencode) | `~/.local/share/opencode/storage/message/` | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-claude.jpg" alt="Claude" /> | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/projects/` | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-openai.jpg" alt="Codex" /> | [Codex CLI](https://github.com/openai/codex) | `~/.codex/sessions/` | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-gemini.png" alt="Gemini" /> | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/tmp/*/chats/` | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-cursor.jpg" alt="Cursor" /> | [Cursor IDE](https://cursor.com/) | `~/.config/tokscale/cursor-cache/`를 통한 API 동기화 | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-amp.png" alt="Amp" /> | [Amp (AmpCode)](https://ampcode.com/) | `~/.local/share/amp/threads/` | ✅ 지원 |
+| <img width="48px" src=".github/assets/client-droid.png" alt="Droid" /> | [Droid (Factory Droid)](https://factory.ai/) | `~/.factory/sessions/` | ✅ 지원 |
+
+[🚅 LiteLLM의 가격 데이터](https://github.com/BerriAI/litellm)를 사용해 **실시간 비용 계산**을 제공합니다. 구간별 가격 모델(대용량 컨텍스트 등)과 **캐시 토큰 할인**도 지원합니다.
+
+### 왜 "Tokscale"인가요?
+
+이 프로젝트는 **[카르다쇼프 척도(Kardashev Scale)](https://ko.wikipedia.org/wiki/%EC%B9%B4%EB%A5%B4%EB%8B%A4%EC%87%BC%ED%94%84_%EC%B2%99%EB%8F%84)**에서 영감을 받았습니다. 카르다쇼프 척도는 문명의 기술 수준을 **에너지 소비량**으로 분류합니다. 유형 I 문명은 행성에서 사용 가능한 모든 에너지를 활용하고, 유형 II는 항성의 전체 출력을 포착하며, 유형 III는 은하 전체의 에너지를 통제합니다.
+
+AI 지원 개발 시대에 **토큰은 새로운 에너지**입니다. 토큰은 우리의 사고력을 구동하고, 생산성을 높이며, 창의적 결과물을 이끌어냅니다. 카르다쇼프 척도가 우주적 규모에서 에너지 소비를 추적하듯, Tokscale은 AI 증강 개발의 단계를 올라가며 **토큰 소비를 측정하고 시각화**합니다. 가볍게 쓰는 사용자든 매일 수백만 개의 토큰을 소비하는 파워 유저든, Tokscale은 "내가 어디에서 무엇을 얼마나 쓰고 있는지"를 분명하게 보여줍니다.
+
 ## 목차
 
 - [개요](#개요)
@@ -81,28 +103,6 @@
   - [개발 가이드라인](#개발-가이드라인)
 - [감사의 글](#감사의-글)
 - [라이선스](#라이선스)
-
-## 개요
-
-**Tokscale**은 아래 플랫폼들의 **토큰 소비량을 수집하고 분석**해 한 눈에 볼 수 있도록 해 줍니다.
-
-| 로고 | 클라이언트 | 데이터 위치 | 지원 여부 |
-|------|----------|---------------|-----------|
-| <img width="48px" src=".github/assets/client-opencode.png" alt="OpenCode" /> | [OpenCode](https://github.com/sst/opencode) | `~/.local/share/opencode/storage/message/` | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-claude.jpg" alt="Claude" /> | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `~/.claude/projects/` | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-openai.jpg" alt="Codex" /> | [Codex CLI](https://github.com/openai/codex) | `~/.codex/sessions/` | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-gemini.png" alt="Gemini" /> | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | `~/.gemini/tmp/*/chats/` | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-cursor.jpg" alt="Cursor" /> | [Cursor IDE](https://cursor.com/) | `~/.config/tokscale/cursor-cache/`를 통한 API 동기화 | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-amp.png" alt="Amp" /> | [Amp (AmpCode)](https://ampcode.com/) | `~/.local/share/amp/threads/` | ✅ 지원 |
-| <img width="48px" src=".github/assets/client-droid.png" alt="Droid" /> | [Droid (Factory Droid)](https://factory.ai/) | `~/.factory/sessions/` | ✅ 지원 |
-
-[🚅 LiteLLM의 가격 데이터](https://github.com/BerriAI/litellm)를 사용해 **실시간 비용 계산**을 제공합니다. 구간별 가격 모델(대용량 컨텍스트 등)과 **캐시 토큰 할인**도 지원합니다.
-
-### 왜 "Tokscale"인가요?
-
-이 프로젝트는 **[카르다쇼프 척도(Kardashev Scale)](https://ko.wikipedia.org/wiki/%EC%B9%B4%EB%A5%B4%EB%8B%A4%EC%87%BC%ED%94%84_%EC%B2%99%EB%8F%84)**에서 영감을 받았습니다. 카르다쇼프 척도는 문명의 기술 수준을 **에너지 소비량**으로 분류합니다. 유형 I 문명은 행성에서 사용 가능한 모든 에너지를 활용하고, 유형 II는 항성의 전체 출력을 포착하며, 유형 III는 은하 전체의 에너지를 통제합니다.
-
-AI 지원 개발 시대에 **토큰은 새로운 에너지**입니다. 토큰은 우리의 사고력을 구동하고, 생산성을 높이며, 창의적 결과물을 이끌어냅니다. 카르다쇼프 척도가 우주적 규모에서 에너지 소비를 추적하듯, Tokscale은 AI 증강 개발의 단계를 올라가며 **토큰 소비를 측정하고 시각화**합니다. 가볍게 쓰는 사용자든 매일 수백만 개의 토큰을 소비하는 파워 유저든, Tokscale은 “내가 어디에서 무엇을 얼마나 쓰고 있는지”를 분명하게 보여줍니다.
 
 ## 기능
 
