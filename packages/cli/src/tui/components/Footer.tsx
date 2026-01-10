@@ -140,6 +140,12 @@ export function Footer(props: FooterProps) {
           <Show when={!isVeryNarrowTerminal()}>
             <text dim>|</text>
             <SortButton
+              label="Date"
+              sortType="date"
+              active={props.sortBy === "date"}
+              onClick={props.onSortChange}
+            />
+            <SortButton
               label="Cost"
               sortType="cost"
               active={props.sortBy === "cost"}

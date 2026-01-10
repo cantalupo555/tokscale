@@ -77,7 +77,7 @@ export function DailyView(props: DailyViewProps) {
   });
 
   const sortArrow = () => (props.sortDesc ? "▼" : "▲");
-  const dateHeader = () => "Date";
+  const dateHeader = () => (props.sortBy === "date" ? `${sortArrow()} Date` : "Date");
   const totalHeader = () => (props.sortBy === "tokens" ? `${sortArrow()} Total` : "Total");
   const costHeader = () => (props.sortBy === "cost" ? `${sortArrow()} Cost` : "Cost");
 

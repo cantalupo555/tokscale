@@ -205,7 +205,7 @@ export function App(props: AppProps) {
       return;
     }
 
-    if (key.name === "tab" || key.name === "d" || key.name === "right") {
+    if (key.name === "tab" || key.name === "right") {
       setActiveTab(cycleTabForward(activeTab()));
       setSelectedIndex(0);
       setScrollOffset(0);
@@ -267,6 +267,11 @@ export function App(props: AppProps) {
     }
     if (key.name === "t") {
       handleSortChange("tokens");
+      return;
+    }
+
+    if (key.name === "d") {
+      handleSortChange("date");
       return;
     }
 
