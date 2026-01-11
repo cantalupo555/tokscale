@@ -163,10 +163,14 @@ export function loadStarCache(username: string): StarCache | null {
  * Save star cache to disk
  */
 export function saveStarCache(cache: StarCache): void {
-  ensureConfigDir();
-  fs.writeFileSync(STAR_CACHE_FILE, JSON.stringify(cache, null, 2), {
-    encoding: "utf-8",
-    mode: 0o600,
-  });
+  try {
+    ensureConfigDir();
+    fs.writeFileSync(STAR_CACHE_FILE, JSON.stringify(cache, null, 2), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+  } catch {
+    // Silent fail - cache is optional, don't block submission
+  }
 }
 

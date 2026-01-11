@@ -62,7 +62,7 @@ async function checkGhCliExists(): Promise<boolean> {
 
 async function checkGitHubStarStatus(): Promise<boolean> {
   try {
-    const { stdout, stderr } = await execAsync("gh api /user/starred/junhoyeo/tokscale");
+    await execAsync("gh api /user/starred/junhoyeo/tokscale");
     return true;
   } catch (error: any) {
     if (error.code === 1 || error.stderr?.includes("404")) {
@@ -83,13 +83,32 @@ async function attemptToStarRepo(): Promise<boolean> {
 
 async function promptUserToStar(): Promise<'star' | 'decline'> {
   const rl = readline.createInterface({ input, output });
-  try {
-    const answer = await rl.question(pc.white("  ⭐ Would you like to star tokscale? (Y/n): "));
-    const normalized = answer.trim().toLowerCase();
-    return normalized === 'n' ? 'decline' : 'star';
-  } finally {
-    rl.close();
-  }
+  
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      rl.close();
+    };
+    
+    const handleSigint = () => {
+      cleanup();
+      resolve('decline');
+    };
+    
+    process.once('SIGINT', handleSigint);
+    
+    rl.question(pc.white("  ⭐ Would you like to star tokscale? (Y/n): "))
+      .then((answer) => {
+        process.off('SIGINT', handleSigint);
+        cleanup();
+        const normalized = answer.trim().toLowerCase();
+        resolve(normalized === 'n' ? 'decline' : 'star');
+      })
+      .catch(() => {
+        process.off('SIGINT', handleSigint);
+        cleanup();
+        resolve('decline');
+      });
+  });
 }
 
 async function handleStarPrompt(username: string): Promise<void> {
@@ -108,8 +127,18 @@ async function handleStarPrompt(username: string): Promise<void> {
       });
       return;
     }
-  } catch {
-    return;
+  } catch (error: any) {
+    // Only suppress network/API errors, let auth failures through
+    if (
+      error.code === 'ENOTFOUND' || 
+      error.code === 'ETIMEDOUT' || 
+      error.stderr?.includes('404') || 
+      error.stderr?.includes('Could not resolve')
+    ) {
+      return;
+    }
+    // Auth failures and other errors should propagate
+    throw error;
   }
 
   console.log();
@@ -129,8 +158,8 @@ async function handleStarPrompt(username: string): Promise<void> {
     console.log(pc.yellow("  GitHub CLI (gh) not found."));
     console.log(pc.white("  Please star the repo manually:"));
     console.log(pc.cyan("  https://github.com/junhoyeo/tokscale\n"));
-    console.log(pc.gray("  Then run 'tokscale submit' again.\n"));
-    process.exit(0);
+    // Don't exit - continue to submission
+    return;
   }
 
   console.log(pc.gray("  Starring repository..."));
