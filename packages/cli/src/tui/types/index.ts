@@ -1,7 +1,7 @@
 import type { ColorPaletteName } from "../config/themes.js";
 
 export type TabType = "overview" | "model" | "daily" | "stats";
-export type SortType = "cost" | "tokens";
+export type SortType = "cost" | "tokens" | "date";
 export type SourceType = "opencode" | "claude" | "codex" | "cursor" | "gemini" | "amp" | "droid";
 
 export type { ColorPaletteName };
