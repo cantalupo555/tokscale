@@ -47,6 +47,18 @@ const FUZZY_BLOCKLIST: &[&str] = &["auto", "mini", "chat", "base"];
 
 const MIN_FUZZY_MATCH_LEN: usize = 5;
 
+/// Minimum length for a model name candidate after prefix/suffix stripping.
+/// Prevents false positives like "pro" or "flash" being matched alone.
+const MIN_MODEL_NAME_LEN: usize = 5;
+
+/// Maximum number of leading segments that can be treated as a routing prefix.
+/// Limits how aggressively we strip (e.g., "a-b-claude-3" strips at most "a-b-").
+const MAX_PREFIX_STRIP_SEGMENTS: usize = 2;
+
+/// Maximum number of trailing segments that can be treated as a routing suffix.
+/// Handles tier suffixes (-high, -low) and variant suffixes (-thinking, -codex, -codex-max-xhigh).
+const MAX_SUFFIX_STRIP_SEGMENTS: usize = 4;
+
 /// Quality/speed tier suffixes that should be stripped for pricing lookup
 /// These indicate provider-specific routing but don't affect the base model pricing
 /// Note: OpenCode Zen uses -xhigh suffix for extra-high quality tier
