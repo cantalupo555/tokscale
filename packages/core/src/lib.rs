@@ -484,7 +484,7 @@ pub async fn get_model_report(options: ReportOptions) -> napi::Result<ModelRepor
         std::collections::HashMap::new();
 
     for msg in filtered {
-        let key = format!("{}:{}:{}", msg.source, msg.provider_id, msg.model_id);
+        let key = format!("{}:{}", msg.source, msg.model_id);
         let entry = model_map.entry(key).or_insert_with(|| ModelUsage {
             source: msg.source.clone(),
             model: msg.model_id.clone(),
@@ -974,7 +974,7 @@ pub async fn finalize_report(options: FinalizeReportOptions) -> napi::Result<Mod
         std::collections::HashMap::new();
 
     for msg in all_messages {
-        let key = format!("{}:{}:{}", msg.source, msg.provider_id, msg.model_id);
+        let key = format!("{}:{}", msg.source, msg.model_id);
         let entry = model_map.entry(key).or_insert_with(|| ModelUsage {
             source: msg.source.clone(),
             model: msg.model_id.clone(),
@@ -1348,7 +1348,7 @@ pub async fn finalize_report_and_graph(options: FinalizeReportOptions) -> napi::
         std::collections::HashMap::new();
 
     for msg in all_messages {
-        let key = format!("{}:{}:{}", msg.source, msg.provider_id, msg.model_id);
+        let key = format!("{}:{}", msg.source, msg.model_id);
         let entry = model_map.entry(key).or_insert_with(|| ModelUsage {
             source: msg.source.clone(),
             model: msg.model_id.clone(),
